@@ -14,8 +14,7 @@ Background task processing in rust using `apalis` and `mysql`
 ## Storage Types
 
 - [`MysqlStorage`]: Standard polling-based storage.
-- [`MysqlStorageWithListener`]: Event-driven storage using Mysql `NOTIFY` for low-latency job fetching.
-- [`SharedMysqlStorage`]: Shared storage for multiple job types, uses Mysql `NOTIFY`.
+- [`SharedMysqlStorage`]: Shared storage for multiple job types, reuses the connection.
 
 The naming is designed to clearly indicate the storage mechanism and its capabilities, but under the hood the result is the `MysqlStorage` struct with different configurations.
 
