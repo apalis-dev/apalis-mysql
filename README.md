@@ -18,6 +18,15 @@ Background task processing in rust using `apalis` and `mysql`
 
 The naming is designed to clearly indicate the storage mechanism and its capabilities, but under the hood the result is the `MysqlStorage` struct with different configurations.
 
+## Setting up
+
+You need a working Mysql server setup.
+Here is a quick command using docker.
+
+```sh
+docker run -d --name test-mysql -e MYSQL_ROOT_PASSWORD=strong_password -p 3306:3306 mysql
+```
+
 ## Examples
 
 ### Basic Worker Example
