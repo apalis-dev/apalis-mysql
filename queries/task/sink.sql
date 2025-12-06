@@ -1,5 +1,15 @@
 INSERT INTO
-    jobs
+    jobs(
+        job,
+        id,
+        job_type,
+        status,
+        attempts,
+        max_attempts,
+        run_at,
+        priority,
+        metadata
+    )
 VALUES
     (
         ?,
@@ -9,10 +19,6 @@ VALUES
         0,
         ?,
         ?,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
         ?,
         ?
     )
