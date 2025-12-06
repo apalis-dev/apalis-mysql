@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     marker::PhantomData,
     pin::Pin,
     sync::Arc,
@@ -72,41 +72,59 @@ impl SharedMysqlStorage<JsonCodec<CompactType>> {
             let registry = registry.clone();
             let fut = async move {
                 loop {
+                    // TODO: @geofmureithi - Use poll strategy to drive fetching
                     let interval = apalis_core::timer::Delay::new(Duration::from_millis(100));
                     interval.await;
                     let mut r = registry.lock().await;
-                    let job_types: Vec<String> = r.keys().cloned().collect();
-                    let lock_at = chrono::Utc::now().timestamp();
+                    let job_types: HashSet<String> = r.keys().cloned().collect();
+                    let lock_at = chrono::Utc::now().naive_utc();
                     let job_types = serde_json::to_string(&job_types).unwrap();
                     let mut tx = pool.begin().await.unwrap();
-                    sqlx::query_file_as!(
+                    let rows = sqlx::query_file_as!(
                         MySqlTaskRow,
                         "queries/backend/fetch_next_shared.sql",
                         job_types,
                         lock_at,
                         10_i32
                     )
-                    .execute(&pool)
+                    .fetch_all(&pool)
                     .await
                     .unwrap();
-                    let rows: Vec<MysqlTask<CompactType>> = sqlx::query_as!(
-                        MySqlTaskRow,
-                        "SELECT * FROM jobs WHERE status = 'Queued' AND JSON_CONTAINS(?, JSON_QUOTE(job_type)) AND lock_at = ?",
-                        job_types,
-                        lock_at
-                    )
-                    .fetch_all(&mut *tx)
-                    .await.unwrap()
-                    .into_iter()
-                    .map(|r| {
-                        let row: TaskRow = r.try_into()?;
-                        row.try_into_task_compact::<Ulid>()
-                            .map_err(|e| sqlx::Error::Protocol(e.to_string()))
-                    })
-                    .collect::<Result<Vec<_>, _>>()
-                    .unwrap();
+
+                    if rows.is_empty() {
+                        tx.commit().await.unwrap();
+                        continue;
+                    }
+
+                    let ids: HashSet<_> = rows.iter().filter_map(|r| r.id.clone()).collect();
+
+                    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+                    let update_query = format!(
+                        "UPDATE jobs SET status = 'Queued', lock_at = ? WHERE id IN ({})",
+                        placeholders
+                    );
+
+                    let mut query = sqlx::query(&update_query).bind(lock_at);
+
+                    for id in &ids {
+                        query = query.bind(id);
+                    }
+
+                    query.execute(&mut *tx).await.unwrap();
+
+                    // Convert rows to tasks
+                    let tasks: Vec<MysqlTask<CompactType>> = rows
+                        .into_iter()
+                        .map(|r| {
+                            let row: TaskRow = r.try_into()?;
+                            row.try_into_task_compact::<Ulid>()
+                                .map_err(|e| sqlx::Error::Protocol(e.to_string()))
+                        })
+                        .collect::<Result<Vec<_>, _>>()
+                        .unwrap();
+
                     tx.commit().await.unwrap();
-                    for task in rows {
+                    for task in tasks {
                         if let Some(sender) =
                             r.get_mut(task.parts.ctx.queue().as_ref().unwrap().as_str())
                         {

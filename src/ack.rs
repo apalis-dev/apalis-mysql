@@ -51,10 +51,10 @@ impl<Res: Serialize + 'static> Acknowledge<Res, SqlContext, Ulid> for MySqlAck {
             let res_ok = res?;
             let res = sqlx::query_file!(
                 "queries/task/ack.sql",
-                task_id,
+                status,
                 attempt,
                 res_ok,
-                status,
+                task_id,
                 worker_id
             )
             .execute(&pool)
@@ -89,7 +89,7 @@ pub(crate) async fn lock_task(
     worker_id: &str,
 ) -> Result<(), sqlx::Error> {
     let task_id = task_id.to_string();
-    let res = sqlx::query_file!("queries/task/lock.sql", task_id, worker_id)
+    let res = sqlx::query_file!("queries/task/lock.sql", worker_id, task_id)
         .execute(pool)
         .await?;
 

@@ -2,7 +2,7 @@ UPDATE
     jobs
 SET
     status = 'Running',
-    lock_at = UNIX_TIMESTAMP(),
+    lock_at = NOW(),
     lock_by = ?
 WHERE
     id = ?

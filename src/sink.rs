@@ -4,6 +4,7 @@ use std::{
     task::{Context, Poll},
 };
 
+use chrono::DateTime;
 use futures::{
     FutureExt, Sink,
     future::{BoxFuture, Shared},
@@ -52,7 +53,9 @@ pub async fn push_tasks(
             .task_id
             .map(|id| id.to_string())
             .unwrap_or(Ulid::new().to_string());
-        let run_at = task.parts.run_at as i64;
+        let run_at = DateTime::from_timestamp(task.parts.run_at as i64, 0)
+            .unwrap_or_default()
+            .naive_utc();
         let max_attempts = task.parts.ctx.max_attempts();
         let priority = task.parts.ctx.priority();
         let args = task.args;

@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "SELECT * FROM jobs WHERE status = 'Queued' AND JSON_CONTAINS(?, JSON_QUOTE(job_type)) AND lock_at = ?",
+  "query": "SELECT\n    *\nFROM\n    jobs\nWHERE\n    job_type = ?\n    AND (\n        (\n            status = 'Pending'\n            AND lock_by IS NULL\n        )\n        OR (\n            status = 'Failed'\n            AND attempts < max_attempts\n        )\n    )\n    AND (\n        run_at IS NULL\n        OR run_at <= ?\n    )\nORDER BY\n    priority DESC,\n    run_at ASC,\n    id ASC\nLIMIT\n    ? FOR\nUPDATE\n    SKIP LOCKED;\n",
   "describe": {
     "columns": [
       {
@@ -122,7 +122,7 @@
       }
     ],
     "parameters": {
-      "Right": 2
+      "Right": 3
     },
     "nullable": [
       false,
@@ -140,5 +140,5 @@
       true
     ]
   },
-  "hash": "ed63771539fd49460448a93c8806e283d8565427620c015a06e385422da59878"
+  "hash": "3bb5cd05cbbf2683e7e8cbf1e7d41c3b590693cac3fd619e69765cf25709ed70"
 }

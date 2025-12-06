@@ -2,7 +2,7 @@ UPDATE
     jobs
 SET
     status = 'Killed',
-    done_at = UNIX_TIMESTAMP(),
+    done_at = NOW(),
     last_result = ?
 WHERE
     id = ?

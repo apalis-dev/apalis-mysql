@@ -4,6 +4,7 @@ use sqlx::MySqlPool;
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
     let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap())
         .await
         .unwrap();

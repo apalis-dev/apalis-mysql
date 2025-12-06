@@ -50,6 +50,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 apalis = { version = "1.0.0-beta.2" }
 apalis-workflow = { version = "0.1.0-beta.2" }
 futures-util = "0.3.31"
+env_logger = "0.10"
 
 [package.metadata.docs.rs]
 # defines the configuration attribute `docsrs`

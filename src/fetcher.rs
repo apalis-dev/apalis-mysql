@@ -1,5 +1,5 @@
 use std::{
-    collections::VecDeque,
+    collections::{HashSet, VecDeque},
     marker::PhantomData,
     pin::Pin,
     sync::{Arc, atomic::AtomicUsize},
@@ -24,40 +24,55 @@ pub async fn fetch_next(
     pool: MySqlPool,
     config: Config,
     worker: WorkerContext,
-) -> Result<Vec<Task<CompactType, SqlContext, Ulid>>, sqlx::Error>
-where
-{
+) -> Result<Vec<Task<CompactType, SqlContext, Ulid>>, sqlx::Error> {
     let mut tx = pool.begin().await?;
-    let lock_at = chrono::Utc::now().timestamp();
+    let lock_at = chrono::Utc::now().naive_utc();
     let job_type = config.queue().to_string();
     let buffer_size = config.buffer_size() as i32;
     let worker = worker.name().clone();
-    sqlx::query_file!(
+
+    let rows = sqlx::query_file_as!(
+        MySqlTaskRow,
         "queries/backend/fetch_next.sql",
         job_type,
         lock_at,
-        buffer_size,
-        worker,
-        lock_at
-    )
-    .execute(&mut *tx)
-    .await?;
-
-    let res = sqlx::query_as!(
-        MySqlTaskRow,
-        "SELECT * FROM jobs WHERE lock_by = ? AND lock_at = ?",
-        worker,
-        lock_at
+        buffer_size
     )
     .fetch_all(&mut *tx)
-    .await?
-    .into_iter()
-    .map(|r| {
-        let row: TaskRow = r.try_into()?;
-        row.try_into_task_compact::<Ulid>()
-            .map_err(|e| sqlx::Error::Protocol(e.to_string()))
-    })
-    .collect();
+    .await?;
+
+    if rows.is_empty() {
+        tx.commit().await?;
+        return Ok(Vec::new());
+    }
+
+    let ids: HashSet<_> = rows.iter().filter_map(|r| r.id.clone()).collect();
+
+    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let update_query = format!(
+        "UPDATE jobs SET status = 'Queued', lock_by = ?, lock_at = ? WHERE id IN ({})",
+        placeholders
+    );
+
+    let mut query = sqlx::query(&update_query).bind(&worker).bind(lock_at);
+
+    for id in &ids {
+        query = query.bind(id);
+    }
+
+    query.execute(&mut *tx).await?;
+
+    // Convert rows to tasks
+    let res = rows
+        .into_iter()
+        .map(|r| {
+            let mut row: TaskRow = r.try_into()?;
+            row.lock_by = Some(worker.clone());
+            row.try_into_task_compact::<Ulid>()
+                .map_err(|e| sqlx::Error::Protocol(e.to_string()))
+        })
+        .collect();
+
     tx.commit().await?;
     res
 }

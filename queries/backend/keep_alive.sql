@@ -1,6 +1,6 @@
 UPDATE
     workers
 SET
-    last_seen = UNIX_TIMESTAMP()
+    last_seen = NOW()
 WHERE
     id = ? AND worker_type = ?;

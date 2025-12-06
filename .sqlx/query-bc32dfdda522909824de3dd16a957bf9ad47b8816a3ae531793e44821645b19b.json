@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE\n    jobs\nSET\n    status = 'Running',\n    lock_at = NOW(),\n    lock_by = ?\nWHERE\n    id = ?\n    AND (\n        status = 'Queued'\n        OR status = 'Pending'\n        OR (\n            status = 'Failed'\n            AND attempts < max_attempts\n        )\n    )\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "bc32dfdda522909824de3dd16a957bf9ad47b8816a3ae531793e44821645b19b"
+}

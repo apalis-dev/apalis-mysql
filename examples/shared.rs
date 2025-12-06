@@ -28,7 +28,7 @@ async fn main() {
     ) -> Result<(), BoxDynError> {
         tokio::time::sleep(Duration::from_secs(2)).await;
         wrk.stop().unwrap();
-        println!("Reminder sent!");
+        println!("{} Reminder sent!", std::any::type_name::<T>());
         Ok(())
     }
 

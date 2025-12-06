@@ -4,7 +4,7 @@ SET
     status = ?,
     attempts = ?,
     last_result = ?,
-    done_at = UNIX_TIMESTAMP()
+    done_at = NOW()
 WHERE
     id = ?
     AND lock_by = ?
