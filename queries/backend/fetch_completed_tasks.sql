@@ -7,9 +7,12 @@ FROM
 WHERE
     id IN (
         SELECT
-            value
+            jt.value
         FROM
-            json_each(?)
+            JSON_TABLE(
+                ?, '$[*]'
+                COLUMNS (value INT PATH '$')
+            ) AS jt
     )
     AND (
         status = 'Done'

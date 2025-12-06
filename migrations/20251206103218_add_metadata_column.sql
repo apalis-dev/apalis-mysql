@@ -1,0 +1,2 @@
+ALTER TABLE jobs
+    ADD COLUMN metadata JSON NULL;

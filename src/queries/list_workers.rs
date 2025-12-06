@@ -1,16 +1,17 @@
 use apalis_core::backend::{BackendExt, ListWorkers, RunningWorker};
+use chrono::NaiveDateTime;
 use futures::TryFutureExt;
 use ulid::Ulid;
 
-use crate::{CompactType, SqlContext, MysqlStorage};
+use crate::{CompactType, MysqlStorage, SqlContext};
 
 struct Worker {
     id: String,
     worker_type: String,
     storage_name: String,
     layers: Option<String>,
-    last_seen: i64,
-    started_at: Option<i64>,
+    last_seen: Option<NaiveDateTime>,
+    started_at: Option<NaiveDateTime>,
 }
 
 impl<Args: Sync, D, F> ListWorkers for MysqlStorage<Args, D, F>
@@ -40,8 +41,14 @@ where
                     .map(|w| RunningWorker {
                         id: w.id,
                         backend: w.storage_name,
-                        started_at: w.started_at.unwrap_or_default() as u64,
-                        last_heartbeat: w.last_seen as u64,
+                        started_at: w
+                            .started_at
+                            .map(|dt| dt.and_utc().timestamp() as u64)
+                            .unwrap_or_default(),
+                        last_heartbeat: w
+                            .last_seen
+                            .map(|dt| dt.and_utc().timestamp() as u64)
+                            .unwrap_or_default(),
                         layers: w.layers.unwrap_or_default(),
                         queue: w.worker_type,
                     })
@@ -71,8 +78,14 @@ where
                     .map(|w| RunningWorker {
                         id: w.id,
                         backend: w.storage_name,
-                        started_at: w.started_at.unwrap_or_default() as u64,
-                        last_heartbeat: w.last_seen as u64,
+                        started_at: w
+                            .started_at
+                            .map(|dt| dt.and_utc().timestamp() as u64)
+                            .unwrap_or_default(),
+                        last_heartbeat: w
+                            .last_seen
+                            .map(|dt| dt.and_utc().timestamp() as u64)
+                            .unwrap_or_default(),
                         layers: w.layers.unwrap_or_default(),
                         queue: w.worker_type,
                     })

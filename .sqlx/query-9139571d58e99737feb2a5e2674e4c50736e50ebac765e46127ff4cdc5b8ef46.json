@@ -5,15 +5,6 @@
     "columns": [
       {
         "ordinal": 0,
-        "name": "job",
-        "type_info": {
-          "type": "Json",
-          "flags": "NOT_NULL | BLOB | BINARY | NO_DEFAULT_VALUE",
-          "max_size": 4294967295
-        }
-      },
-      {
-        "ordinal": 1,
         "name": "id",
         "type_info": {
           "type": "VarString",
@@ -22,7 +13,7 @@
         }
       },
       {
-        "ordinal": 2,
+        "ordinal": 1,
         "name": "job_type",
         "type_info": {
           "type": "VarString",
@@ -31,7 +22,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 2,
         "name": "status",
         "type_info": {
           "type": "VarString",
@@ -40,7 +31,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 3,
         "name": "attempts",
         "type_info": {
           "type": "Long",
@@ -49,7 +40,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 4,
         "name": "max_attempts",
         "type_info": {
           "type": "Long",
@@ -58,7 +49,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 5,
         "name": "run_at",
         "type_info": {
           "type": "Datetime",
@@ -67,8 +58,8 @@
         }
       },
       {
-        "ordinal": 7,
-        "name": "last_error",
+        "ordinal": 6,
+        "name": "last_result",
         "type_info": {
           "type": "VarString",
           "flags": "",
@@ -76,7 +67,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 7,
         "name": "lock_at",
         "type_info": {
           "type": "Datetime",
@@ -85,7 +76,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 8,
         "name": "lock_by",
         "type_info": {
           "type": "VarString",
@@ -94,7 +85,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 9,
         "name": "done_at",
         "type_info": {
           "type": "Datetime",
@@ -103,12 +94,30 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 10,
         "name": "priority",
         "type_info": {
           "type": "Long",
           "flags": "NOT_NULL",
           "max_size": 11
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "job",
+        "type_info": {
+          "type": "Blob",
+          "flags": "NOT_NULL | BLOB | BINARY | NO_DEFAULT_VALUE",
+          "max_size": 4294967295
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "metadata",
+        "type_info": {
+          "type": "Json",
+          "flags": "BLOB | BINARY",
+          "max_size": 4294967295
         }
       }
     ],
@@ -121,13 +130,14 @@
       false,
       false,
       false,
+      true,
+      true,
+      true,
+      true,
+      true,
       false,
-      true,
-      true,
-      true,
-      true,
-      true,
-      false
+      false,
+      true
     ]
   },
   "hash": "9139571d58e99737feb2a5e2674e4c50736e50ebac765e46127ff4cdc5b8ef46"

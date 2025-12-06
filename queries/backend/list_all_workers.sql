@@ -1,7 +1,7 @@
 SELECT
     *
 FROM
-    Workers
+    workers
 ORDER BY
     last_seen DESC
 LIMIT

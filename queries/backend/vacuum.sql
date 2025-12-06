@@ -7,5 +7,3 @@ where
         status = 'Failed'
         AND max_attempts <= attempts
     );
-
-VACUUM;

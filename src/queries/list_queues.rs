@@ -1,22 +1,22 @@
 use apalis_core::backend::{BackendExt, ListQueues, QueueInfo};
 use ulid::Ulid;
 
-use crate::{CompactType, SqlContext, MysqlStorage};
+use crate::{CompactType, MysqlStorage, SqlContext};
 
 struct QueueInfoRow {
-    name: String,
-    stats: String,    // JSON string
-    workers: String,  // JSON string
-    activity: String, // JSON string
+    name: Option<String>,
+    stats: serde_json::Value,
+    workers: serde_json::Value,
+    activity: serde_json::Value,
 }
 
 impl From<QueueInfoRow> for QueueInfo {
     fn from(row: QueueInfoRow) -> Self {
         Self {
-            name: row.name,
-            stats: serde_json::from_str(&row.stats).unwrap(),
-            workers: serde_json::from_str(&row.workers).unwrap(),
-            activity: serde_json::from_str(&row.activity).unwrap(),
+            name: row.name.unwrap_or_default(),
+            stats: serde_json::from_value(row.stats).unwrap(),
+            workers: serde_json::from_value(row.workers).unwrap(),
+            activity: serde_json::from_value(row.activity).unwrap(),
         }
     }
 }

@@ -1,6 +1,6 @@
 UPDATE
-    Workers
+    workers
 SET
-    last_seen = strftime('%s', 'now')
+    last_seen = UNIX_TIMESTAMP()
 WHERE
-    id = $1 AND worker_type = $2;
+    id = ? AND worker_type = ?;

@@ -5,7 +5,7 @@ use apalis_core::{
 use apalis_sql::from_row::{FromRowError, TaskRow};
 use ulid::Ulid;
 
-use crate::{CompactType, SqlContext, MysqlStorage, MysqlTask, from_row::MySqlTaskRow};
+use crate::{CompactType, MysqlStorage, MysqlTask, SqlContext, from_row::MySqlTaskRow};
 
 impl<Args, D, F> ListTasks<Args> for MysqlStorage<Args, D, F>
 where

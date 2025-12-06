@@ -1,7 +1,7 @@
 use apalis_core::backend::{BackendExt, Metrics, Statistic};
 use ulid::Ulid;
 
-use crate::{CompactType, SqlContext, MysqlStorage};
+use crate::{CompactType, MysqlStorage, SqlContext};
 
 struct StatisticRow {
     /// The priority of the statistic (lower number means higher priority)
@@ -46,6 +46,33 @@ where
             let rec = sqlx::query_file_as!(
                 StatisticRow,
                 "queries/backend/overview_by_queue.sql",
+                // yeah mysql is dumb like that
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
+                queue_id,
                 queue_id
             )
             .fetch_all(&pool)

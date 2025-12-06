@@ -4,7 +4,7 @@ SET
     status = ?,
     attempts = ?,
     last_result = ?,
-    done_at = strftime('%s', 'now')
+    done_at = UNIX_TIMESTAMP()
 WHERE
     id = ?
     AND lock_by = ?

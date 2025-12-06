@@ -1,21 +1,12 @@
 UPDATE
     jobs
-SET
-    status = 'Queued',
-    lock_at = strftime('%s', 'now')
-WHERE
-    ROWID IN (
+    INNER JOIN (
         SELECT
-            ROWID
+            id
         FROM
             jobs
         WHERE
-            job_type IN (
-                SELECT
-                    value
-                FROM
-                    json_each(?)
-            )
+            JSON_CONTAINS(?, JSON_QUOTE(job_type))
             AND (
                 (
                     status = 'Pending'
@@ -28,13 +19,7 @@ WHERE
             )
             AND (
                 run_at IS NULL
-                OR run_at <= strftime('%s', 'now')
-            )
-            AND ROWID IN (
-                SELECT
-                    value
-                FROM
-                    json_each(?)
+                OR run_at <= UNIX_TIMESTAMP()
             )
         ORDER BY
             priority DESC,
@@ -42,4 +27,7 @@ WHERE
             id ASC
         LIMIT
             ?
-    ) RETURNING *;
+    ) AS selected_jobs ON jobs.id = selected_jobs.id
+SET
+    jobs.status = 'Queued',
+    jobs.lock_at = ?

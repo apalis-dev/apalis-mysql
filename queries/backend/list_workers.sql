@@ -1,7 +1,7 @@
 SELECT
     *
 FROM
-    Workers
+    workers
 WHERE
     worker_type = ?
 ORDER BY

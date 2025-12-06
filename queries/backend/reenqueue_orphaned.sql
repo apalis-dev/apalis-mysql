@@ -10,15 +10,19 @@ SET
 WHERE
     id IN (
         SELECT
-            jobs.id
-        FROM
-            jobs
-            INNER JOIN Workers ON lock_by = Workers.id
-        WHERE
-            (
-                status = "Running"
-                OR status = "Queued"
-            )
-            AND strftime('%s', 'now') - Workers.last_seen >= ?
-            AND Workers.worker_type = ?
+            orphaned.id
+        FROM (
+            SELECT
+                jobs.id
+            FROM
+                jobs
+                INNER JOIN workers ON lock_by = workers.id
+            WHERE
+                (
+                    status = "Running"
+                    OR status = "Queued"
+                )
+                AND UNIX_TIMESTAMP() - workers.last_seen >= ?
+                AND workers.worker_type = ?
+        ) AS orphaned
     );

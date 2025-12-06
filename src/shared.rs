@@ -1,20 +1,20 @@
 use std::{
-    cmp::max,
-    collections::{HashMap, HashSet},
-    future::ready,
+    collections::HashMap,
     marker::PhantomData,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
+    time::Duration,
 };
 
 use crate::{
     CompactType, Config, MysqlStorage, MysqlTask,
-    ack::{LockTaskLayer, MySqlAck}
+    ack::{LockTaskLayer, MySqlAck},
     fetcher::MySqlPollFetcher,
     initial_heartbeat, keep_alive,
 };
 use crate::{from_row::MySqlTaskRow, sink::MySqlSink};
+
 use apalis_core::{
     backend::{
         Backend, BackendExt, TaskStream,
@@ -26,13 +26,13 @@ use apalis_core::{
 };
 use apalis_sql::{context::SqlContext, from_row::TaskRow};
 use futures::{
-    FutureExt, SinkExt, Stream, StreamExt, TryStreamExt,
+    FutureExt, Stream, StreamExt, TryStreamExt,
     channel::mpsc::{self, Receiver, Sender},
     future::{BoxFuture, Shared},
     lock::Mutex,
     stream::{self, BoxStream, select},
 };
-use sqlx::{MySql, MySqlPool, pool::PoolOptions, mysql::MySqlOperation};
+use sqlx::{MySql, MySqlPool, pool::PoolOptions};
 use ulid::Ulid;
 
 /// Shared MySql storage backend that can be used across multiple workers
@@ -61,79 +61,65 @@ impl SharedMysqlStorage<JsonCodec<CompactType>> {
     /// Create a new shared MySql storage backend with the given database URL and codec
     #[must_use]
     pub fn new_with_codec<Codec>(url: &str) -> SharedMysqlStorage<Codec> {
-        let (tx, rx) = mpsc::unbounded::<DbEvent>();
         let pool = PoolOptions::<MySql>::new()
             .connect_lazy(url)
             .expect("Failed to create MySql pool");
 
         let registry: Arc<Mutex<HashMap<String, Sender<MysqlTask<CompactType>>>>> =
             Arc::new(Mutex::new(HashMap::default()));
-        let p = pool.clone();
-        let instances = registry.clone();
+        let drive = {
+            let pool = pool.clone();
+            let registry = registry.clone();
+            let fut = async move {
+                loop {
+                    let interval = apalis_core::timer::Delay::new(Duration::from_millis(100));
+                    interval.await;
+                    let mut r = registry.lock().await;
+                    let job_types: Vec<String> = r.keys().cloned().collect();
+                    let lock_at = chrono::Utc::now().timestamp();
+                    let job_types = serde_json::to_string(&job_types).unwrap();
+                    let mut tx = pool.begin().await.unwrap();
+                    sqlx::query_file_as!(
+                        MySqlTaskRow,
+                        "queries/backend/fetch_next_shared.sql",
+                        job_types,
+                        lock_at,
+                        10_i32
+                    )
+                    .execute(&pool)
+                    .await
+                    .unwrap();
+                    let rows: Vec<MysqlTask<CompactType>> = sqlx::query_as!(
+                        MySqlTaskRow,
+                        "SELECT * FROM jobs WHERE status = 'Queued' AND JSON_CONTAINS(?, JSON_QUOTE(job_type)) AND lock_at = ?",
+                        job_types,
+                        lock_at
+                    )
+                    .fetch_all(&mut *tx)
+                    .await.unwrap()
+                    .into_iter()
+                    .map(|r| {
+                        let row: TaskRow = r.try_into()?;
+                        row.try_into_task_compact::<Ulid>()
+                            .map_err(|e| sqlx::Error::Protocol(e.to_string()))
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+                    .unwrap();
+                    tx.commit().await.unwrap();
+                    for task in rows {
+                        if let Some(sender) =
+                            r.get_mut(task.parts.ctx.queue().as_ref().unwrap().as_str())
+                        {
+                            let _ = sender.try_send(task);
+                        }
+                    }
+                }
+            };
+            fut.boxed().shared()
+        };
         SharedMysqlStorage {
             pool,
-            drive: async move {
-                rx.filter(|a| {
-                    ready(a.operation() == &MySqlOperation::Insert && a.table_name() == JOBS_TABLE)
-                })
-                .ready_chunks(instances.try_lock().map(|r| r.len()).unwrap_or(10))
-                .then(|events| {
-                    let row_ids = events.iter().map(|e| e.rowid()).collect::<HashSet<i64>>();
-                    let instances = instances.clone();
-                    let pool = p.clone();
-                    async move {
-                        let instances = instances.lock().await;
-                        let job_types = serde_json::to_string(
-                            &instances.keys().cloned().collect::<Vec<String>>(),
-                        )
-                        .unwrap();
-                        let row_ids = serde_json::to_string(&row_ids).unwrap();
-                        let mut tx = pool.begin().await?;
-                        let buffer_size = max(10, instances.len()) as i32;
-                        let res: Vec<_> = sqlx::query_file_as!(
-                            MySqlTaskRow,
-                            "queries/backend/fetch_next_shared.sql",
-                            job_types,
-                            row_ids,
-                            buffer_size,
-                        )
-                        .fetch(&mut *tx)
-                        .map(|r| {
-                            let row: TaskRow = r?.try_into()?;
-                            row.try_into_task_compact()
-                                .map_err(|e| sqlx::Error::Protocol(e.to_string()))
-                        })
-                        .try_collect()
-                        .await?;
-                        tx.commit().await?;
-                        Ok::<_, sqlx::Error>(res)
-                    }
-                })
-                .for_each(|r| async {
-                    match r {
-                        Ok(tasks) => {
-                            let mut instances = instances.lock().await;
-                            for task in tasks {
-                                if let Some(tx) = instances.get_mut(
-                                    task.parts
-                                        .ctx
-                                        .queue()
-                                        .as_ref()
-                                        .expect("Namespace must be set"),
-                                ) {
-                                    let _ = tx.send(task).await;
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            log::error!("Error fetching tasks: {e:?}");
-                        }
-                    }
-                })
-                .await;
-            }
-            .boxed()
-            .shared(),
+            drive,
             registry,
             _marker: PhantomData,
         }
@@ -327,7 +313,7 @@ mod tests {
 
     #[tokio::test]
     async fn basic_worker() {
-        let mut store = SharedMysqlStorage::new(":memory:");
+        let mut store = SharedMysqlStorage::new(&std::env::var("DATABASE_URL").unwrap());
         MysqlStorage::setup(store.pool()).await.unwrap();
 
         let mut map_store = store.make_shared().unwrap();

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE\n    workers\nSET\n    last_seen = UNIX_TIMESTAMP()\nWHERE\n    id = ? AND worker_type = ?;\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "db9632eaaeb24646af951a1fe98b17d65a4f4a332990876d2a08bbc19ae07333"
+}

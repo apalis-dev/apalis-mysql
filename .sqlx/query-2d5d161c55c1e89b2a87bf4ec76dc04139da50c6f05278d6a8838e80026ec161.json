@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE\n    jobs\nSET\n    status = \"Pending\",\n    done_at = NULL,\n    lock_by = NULL,\n    lock_at = NULL,\n    attempts = attempts + 1,\n    last_result = '{\"Err\": \"Re-enqueued due to worker heartbeat timeout.\"}'\nWHERE\n    id IN (\n        SELECT\n            orphaned.id\n        FROM (\n            SELECT\n                jobs.id\n            FROM\n                jobs\n                INNER JOIN workers ON lock_by = workers.id\n            WHERE\n                (\n                    status = \"Running\"\n                    OR status = \"Queued\"\n                )\n                AND UNIX_TIMESTAMP() - workers.last_seen >= ?\n                AND workers.worker_type = ?\n        ) AS orphaned\n    );\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "2d5d161c55c1e89b2a87bf4ec76dc04139da50c6f05278d6a8838e80026ec161"
+}

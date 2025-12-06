@@ -14,7 +14,7 @@ use apalis_core::{
 use apalis_sql::{context::SqlContext, from_row::TaskRow};
 use futures::{FutureExt, future::BoxFuture, stream::Stream};
 use pin_project::pin_project;
-use sqlx::{Pool, MySql, MySqlPool};
+use sqlx::{MySql, MySqlPool, Pool};
 use ulid::Ulid;
 
 use crate::{CompactType, MysqlTask, config::Config, from_row::MySqlTaskRow};
@@ -27,17 +27,29 @@ pub async fn fetch_next(
 ) -> Result<Vec<Task<CompactType, SqlContext, Ulid>>, sqlx::Error>
 where
 {
+    let mut tx = pool.begin().await?;
+    let lock_at = chrono::Utc::now().timestamp();
     let job_type = config.queue().to_string();
     let buffer_size = config.buffer_size() as i32;
     let worker = worker.name().clone();
-    sqlx::query_file_as!(
-        MySqlTaskRow,
+    sqlx::query_file!(
         "queries/backend/fetch_next.sql",
-        worker,
         job_type,
-        buffer_size
+        lock_at,
+        buffer_size,
+        worker,
+        lock_at
     )
-    .fetch_all(&pool)
+    .execute(&mut *tx)
+    .await?;
+
+    let res = sqlx::query_as!(
+        MySqlTaskRow,
+        "SELECT * FROM jobs WHERE lock_by = ? AND lock_at = ?",
+        worker,
+        lock_at
+    )
+    .fetch_all(&mut *tx)
     .await?
     .into_iter()
     .map(|r| {
@@ -45,7 +57,9 @@ where
         row.try_into_task_compact::<Ulid>()
             .map_err(|e| sqlx::Error::Protocol(e.to_string()))
     })
-    .collect()
+    .collect();
+    tx.commit().await?;
+    res
 }
 
 enum StreamState {

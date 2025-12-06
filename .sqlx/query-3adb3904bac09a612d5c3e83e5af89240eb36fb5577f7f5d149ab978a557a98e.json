@@ -1,0 +1,44 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT\n    id,\n    status,\n    last_result as result\nFROM\n    jobs\nWHERE\n    id IN (\n        SELECT\n            jt.value\n        FROM\n            JSON_TABLE(\n                ?, '$[*]'\n                COLUMNS (value INT PATH '$')\n            ) AS jt\n    )\n    AND (\n        status = 'Done'\n        OR (\n            status = 'Failed'\n            AND attempts >= max_attempts\n        )\n        OR status = 'Killed'\n    )\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | PRIMARY_KEY | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "max_size": 144
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "status",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | MULTIPLE_KEY",
+          "max_size": 80
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "result",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "max_size": 4000
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "3adb3904bac09a612d5c3e83e5af89240eb36fb5577f7f5d149ab978a557a98e"
+}

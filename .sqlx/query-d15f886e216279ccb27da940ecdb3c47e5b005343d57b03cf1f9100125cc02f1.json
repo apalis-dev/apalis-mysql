@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE\n    jobs\n    INNER JOIN (\n        SELECT\n            id\n        FROM\n            jobs\n        WHERE\n            JSON_CONTAINS(?, JSON_QUOTE(job_type))\n            AND (\n                (\n                    status = 'Pending'\n                    AND lock_by IS NULL\n                )\n                OR (\n                    status = 'Failed'\n                    AND attempts < max_attempts\n                )\n            )\n            AND (\n                run_at IS NULL\n                OR run_at <= UNIX_TIMESTAMP()\n            )\n        ORDER BY\n            priority DESC,\n            run_at ASC,\n            id ASC\n        LIMIT\n            ?\n    ) AS selected_jobs ON jobs.id = selected_jobs.id\nSET\n    jobs.status = 'Queued',\n    jobs.lock_at = ?\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "d15f886e216279ccb27da940ecdb3c47e5b005343d57b03cf1f9100125cc02f1"
+}

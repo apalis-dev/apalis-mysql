@@ -1,7 +1,7 @@
 use apalis_core::backend::{BackendExt, ConfigExt, queue::Queue};
 use ulid::Ulid;
 
-use crate::{CompactType, SqlContext, MysqlStorage};
+use crate::{CompactType, MysqlStorage, SqlContext};
 
 pub use apalis_sql::config::*;
 

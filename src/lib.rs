@@ -15,10 +15,8 @@ use apalis_core::{
 };
 pub use apalis_sql::context::SqlContext;
 use futures::{
-    FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt,
-    channel::mpsc::{self},
-    future::ready,
-    stream::{self, BoxStream, select},
+    FutureExt, Stream, StreamExt, TryStreamExt,
+    stream::{self, BoxStream},
 };
 pub use sqlx::{
     Connection, MySql, MySqlConnection, MySqlPool, Pool,
@@ -30,7 +28,7 @@ use ulid::Ulid;
 
 use crate::{
     ack::{LockTaskLayer, MySqlAck},
-    fetcher::{MySqlFetcher, MySqlPollFetcher, fetch_next},
+    fetcher::{MySqlFetcher, MySqlPollFetcher},
     queries::{
         keep_alive::{initial_heartbeat, keep_alive, keep_alive_stream},
         reenqueue_orphaned::reenqueue_orphaned_stream,
@@ -52,7 +50,7 @@ pub mod sink;
 /// Type alias for a task stored in mysql backend
 pub type MysqlTask<Args> = Task<Args, SqlContext, Ulid>;
 pub use config::Config;
-pub use shared::{SharedMysqlStorage, SharedMySqlError};
+pub use shared::{SharedMySqlError, SharedMysqlStorage};
 
 /// CompactType is the type used for compact serialization in mysql backend
 pub type CompactType = Vec<u8>;
@@ -66,7 +64,7 @@ pub type CompactType = Vec<u8>;
         # {
         #   use apalis_mysql::MysqlStorage;
         #   use sqlx::MySqlPool;
-        #   let pool = MySqlPool::connect(":memory:").await.unwrap();
+        #   let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap();
         #   MysqlStorage::setup(&pool).await.unwrap();
         #   MysqlStorage::new(&pool)
         # };
@@ -328,7 +326,7 @@ mod tests {
     #[tokio::test]
     async fn basic_worker() {
         const ITEMS: usize = 10;
-        let pool = MySqlPool::connect(":memory:").await.unwrap();
+        let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap();
         MysqlStorage::setup(&pool).await.unwrap();
 
         let mut backend = MysqlStorage::new(&pool);
@@ -370,8 +368,9 @@ mod tests {
                 Err::<(), BoxDynError>("Intentional Error".into())
             });
 
+        let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap();
         let mut mysql = MysqlStorage::new_with_config(
-            ":memory:",
+            &pool,
             &Config::new("workflow-queue").with_poll_interval(
                 StrategyBuilder::new()
                     .apply(IntervalStrategy::new(Duration::from_millis(100)))
@@ -379,7 +378,7 @@ mod tests {
             ),
         );
 
-        MysqlStorage::setup(mysql.pool()).await.unwrap();
+        MysqlStorage::setup(&pool).await.unwrap();
 
         mysql.push_start(100usize).await.unwrap();
 
@@ -484,9 +483,10 @@ mod tests {
                 worker.stop()
             });
 
-        let mut mysql = MysqlStorage::new_with_config(":memory:", &Config::new("text-pipeline"));
+        let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap();
+        let mut mysql = MysqlStorage::new_with_config(&pool, &Config::new("text-pipeline"));
 
-        MysqlStorage::setup(mysql.pool()).await.unwrap();
+        MysqlStorage::setup(&pool).await.unwrap();
 
         let input = UserInput {
             text: "Rust makes systems programming delightful!".to_string(),

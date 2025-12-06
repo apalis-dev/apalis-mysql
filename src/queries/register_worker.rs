@@ -20,6 +20,7 @@ pub async fn register_worker(
         queue,
         storage_type,
         layers,
+        worker_id,
         keep_alive,
     )
     .execute(&pool)

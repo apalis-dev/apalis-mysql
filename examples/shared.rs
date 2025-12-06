@@ -1,13 +1,13 @@
 use std::{collections::HashMap, time::Duration};
 
 use apalis::prelude::*;
-use apalis_mysql::{SharedMysqlStorage, MysqlStorage};
+use apalis_mysql::{MysqlStorage, SharedMysqlStorage};
 
 use futures::stream;
 
 #[tokio::main]
 async fn main() {
-    let mut store = SharedMysqlStorage::new(":memory:");
+    let mut store = SharedMysqlStorage::new(&std::env::var("DATABASE_URL").unwrap());
 
     MysqlStorage::setup(store.pool()).await.unwrap();
 
