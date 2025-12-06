@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE\n    jobs\nSET\n    status = ?,\n    attempts = ?,\n    last_result = ?,\n    done_at = NOW()\nWHERE\n    id = ?\n    AND lock_by = ?\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "ad09e64e33f2fec79c5461faca6e2956772ae1ff3d7eae5d85bbae59baf481b6"
+}

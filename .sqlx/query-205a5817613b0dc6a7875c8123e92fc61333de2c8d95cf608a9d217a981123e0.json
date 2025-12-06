@@ -1,0 +1,54 @@
+{
+  "db_name": "MySQL",
+  "query": "WITH queue_stats AS (\n    SELECT\n        job_type,\n        JSON_ARRAYAGG(\n            JSON_OBJECT(\n                'title', statistic,\n                'stat_type', type,\n                'value', value,\n                'priority', priority\n            )\n        ) as stats\n    FROM (\n        SELECT\n            job_type,\n            1 AS priority,\n            'Number' AS type,\n            'RUNNING_JOBS' AS statistic,\n            CAST(SUM(IF(status = 'Running', 1, 0)) AS CHAR) AS value\n        FROM jobs\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            1,\n            'Number',\n            'PENDING_JOBS',\n            CAST(SUM(IF(status = 'Pending', 1, 0)) AS CHAR)\n        FROM jobs\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            1,\n            'Number',\n            'FAILED_JOBS',\n            CAST(SUM(IF(status = 'Failed', 1, 0)) AS CHAR)\n        FROM jobs\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            2,\n            'Number',\n            'ACTIVE_JOBS',\n            CAST(SUM(IF(status IN ('Pending', 'Queued', 'Running'), 1, 0)) AS CHAR)\n        FROM jobs\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            2,\n            'Number',\n            'STALE_RUNNING_JOBS',\n            CAST(COUNT(*) AS CHAR)\n        FROM jobs\n        WHERE status = 'Running'\n          AND run_at < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            2,\n            'Percentage',\n            'KILL_RATE',\n            CAST(ROUND(100.0 * SUM(IF(status = 'Killed', 1, 0)) / NULLIF(COUNT(*), 0), 2) AS CHAR)\n        FROM jobs\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            3,\n            'Number',\n            'JOBS_PAST_HOUR',\n            CAST(COUNT(*) AS CHAR)\n        FROM jobs\n        WHERE run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            3,\n            'Number',\n            'JOBS_TODAY',\n            CAST(COUNT(*) AS CHAR)\n        FROM jobs\n        WHERE DATE(FROM_UNIXTIME(run_at)) = DATE(NOW())\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            3,\n            'Number',\n            'KILLED_JOBS_TODAY',\n            CAST(SUM(IF(status = 'Killed', 1, 0)) AS CHAR)\n        FROM jobs\n        WHERE DATE(FROM_UNIXTIME(run_at)) = DATE(NOW())\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            3,\n            'Decimal',\n            'AVG_JOBS_PER_MINUTE_PAST_HOUR',\n            CAST(ROUND(COUNT(*) / 60.0, 2) AS CHAR)\n        FROM jobs\n        WHERE run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            4,\n            'Number',\n            'TOTAL_JOBS',\n            CAST(COUNT(*) AS CHAR)\n        FROM jobs\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            4,\n            'Number',\n            'DONE_JOBS',\n            CAST(SUM(IF(status = 'Done', 1, 0)) AS CHAR)\n        FROM jobs\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            4,\n            'Number',\n            'KILLED_JOBS',\n            CAST(SUM(IF(status = 'Killed', 1, 0)) AS CHAR)\n        FROM jobs\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            4,\n            'Percentage',\n            'SUCCESS_RATE',\n            CAST(ROUND(100.0 * SUM(IF(status = 'Done', 1, 0)) / NULLIF(COUNT(*), 0), 2) AS CHAR)\n        FROM jobs\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            5,\n            'Decimal',\n            'AVG_JOB_DURATION_MINS',\n            CAST(ROUND(AVG((done_at - run_at) / 60.0), 2) AS CHAR)\n        FROM jobs\n        WHERE status IN ('Done', 'Failed', 'Killed')\n          AND done_at IS NOT NULL\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            5,\n            'Decimal',\n            'LONGEST_RUNNING_JOB_MINS',\n            CAST(ROUND(MAX(IF(status = 'Running', (UNIX_TIMESTAMP(NOW()) - run_at) / 60.0, 0)), 2) AS CHAR)\n        FROM jobs\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            6,\n            'Number',\n            'JOBS_PAST_7_DAYS',\n            CAST(COUNT(*) AS CHAR)\n        FROM jobs\n        WHERE run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))\n        GROUP BY job_type\n        UNION ALL\n        SELECT\n            job_type,\n            8,\n            'Timestamp',\n            'MOST_RECENT_JOB',\n            CAST(MAX(run_at) AS CHAR)\n        FROM jobs\n        GROUP BY job_type\n    ) t\n    GROUP BY job_type\n),\nall_job_types AS (\n    SELECT worker_type AS job_type FROM workers\n    UNION\n    SELECT job_type FROM jobs\n)\nSELECT\n    jt.job_type as name,\n    COALESCE(qs.stats, JSON_ARRAY()) as stats,\n    COALESCE(\n        (\n            SELECT JSON_ARRAYAGG(lock_by)\n            FROM jobs\n            WHERE job_type = jt.job_type\n              AND lock_by IS NOT NULL\n        ),\n        JSON_ARRAY()\n    ) as workers,\n    COALESCE(\n        (\n            SELECT JSON_ARRAYAGG(daily_count)\n            FROM (\n                SELECT COUNT(*) as daily_count\n                FROM jobs\n                WHERE job_type = jt.job_type\n                  AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))\n                GROUP BY DATE(FROM_UNIXTIME(run_at))\n                ORDER BY DATE(FROM_UNIXTIME(run_at))\n            ) x\n        ),\n        JSON_ARRAY()\n    ) as activity\nFROM all_job_types jt\nLEFT JOIN queue_stats qs ON jt.job_type = qs.job_type\nORDER BY name;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "max_size": 800
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "stats",
+        "type_info": {
+          "type": "Json",
+          "flags": "BINARY",
+          "max_size": 4294967292
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "workers",
+        "type_info": {
+          "type": "Json",
+          "flags": "BINARY",
+          "max_size": 4294967292
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "activity",
+        "type_info": {
+          "type": "Json",
+          "flags": "BINARY",
+          "max_size": 4294967292
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "205a5817613b0dc6a7875c8123e92fc61333de2c8d95cf608a9d217a981123e0"
+}

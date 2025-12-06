@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE\n    workers\nSET\n    last_seen = NOW()\nWHERE\n    id = ? AND worker_type = ?;\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f4414dfa8ea0b093c2d7bba6f72a24f7399fd562b4b766dfaf45710318ba1f54"
+}

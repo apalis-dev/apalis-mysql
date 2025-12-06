@@ -1,0 +1,54 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT\n    1 AS priority,\n    'Number' AS type,\n    'RUNNING_JOBS' AS statistic,\n    CAST(SUM(CASE WHEN status = 'Running' THEN 1 ELSE 0 END) AS REAL) AS value\nFROM jobs\nUNION ALL\nSELECT\n    1,\n    'Number',\n    'PENDING_JOBS',\n    CAST(SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    2,\n    'Number',\n    'FAILED_JOBS',\n    CAST(SUM(CASE WHEN status = 'Failed' THEN 1 ELSE 0 END) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    2,\n    'Number',\n    'ACTIVE_JOBS',\n    CAST(SUM(CASE WHEN status IN ('Pending', 'Running', 'Queued') THEN 1 ELSE 0 END) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    2,\n    'Number',\n    'STALE_RUNNING_JOBS',\n    CAST(COUNT(*) AS REAL)\nFROM jobs\nWHERE status = 'Running'\n    AND run_at < UNIX_TIMESTAMP() - 3600\nUNION ALL\nSELECT\n    2,\n    'Percentage',\n    'KILL_RATE',\n    CAST(ROUND(100.0 * SUM(CASE WHEN status = 'Killed' THEN 1 ELSE 0 END) / IFNULL(COUNT(*), 1), 2) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    3,\n    'Number',\n    'JOBS_PAST_HOUR',\n    CAST(COUNT(*) AS REAL)\nFROM jobs\nWHERE run_at >= UNIX_TIMESTAMP() - 3600\nUNION ALL\nSELECT\n    3,\n    'Number',\n    'JOBS_TODAY',\n    CAST(COUNT(*) AS REAL)\nFROM jobs\nWHERE DATE(FROM_UNIXTIME(run_at)) = CURDATE()\nUNION ALL\nSELECT\n    3,\n    'Number',\n    'KILLED_JOBS_TODAY',\n    CAST(SUM(CASE WHEN status = 'Killed' THEN 1 ELSE 0 END) AS REAL)\nFROM jobs\nWHERE DATE(FROM_UNIXTIME(run_at)) = CURDATE()\nUNION ALL\nSELECT\n    3,\n    'Decimal',\n    'AVG_JOBS_PER_MINUTE_PAST_HOUR',\n    CAST(ROUND(COUNT(*) / 60.0, 2) AS REAL)\nFROM jobs\nWHERE run_at >= UNIX_TIMESTAMP() - 3600\nUNION ALL\nSELECT\n    4,\n    'Number',\n    'TOTAL_JOBS',\n    CAST(COUNT(*) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    4,\n    'Number',\n    'DONE_JOBS',\n    CAST(SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    4,\n    'Number',\n    'COMPLETED_JOBS',\n    CAST(SUM(CASE WHEN status IN ('Done', 'Failed', 'Killed') THEN 1 ELSE 0 END) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    4,\n    'Number',\n    'KILLED_JOBS',\n    CAST(SUM(CASE WHEN status = 'Killed' THEN 1 ELSE 0 END) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    4,\n    'Percentage',\n    'SUCCESS_RATE',\n    CAST(ROUND(100.0 * SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END) / IFNULL(COUNT(*), 1), 2) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    5,\n    'Decimal',\n    'AVG_JOB_DURATION_MINS',\n    CAST(ROUND(AVG((done_at - run_at) / 60.0), 2) AS REAL)\nFROM jobs\nWHERE status IN ('Done', 'Failed', 'Killed')\n    AND done_at IS NOT NULL\nUNION ALL\nSELECT\n    5,\n    'Decimal',\n    'LONGEST_RUNNING_JOB_MINS',\n    CAST(ROUND(MAX(CASE WHEN status = 'Running' THEN (UNIX_TIMESTAMP() - run_at) / 60.0 ELSE 0 END), 2) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    5,\n    'Number',\n    'QUEUE_BACKLOG',\n    CAST(SUM(CASE WHEN status = 'Pending' AND run_at <= UNIX_TIMESTAMP() THEN 1 ELSE 0 END) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    6,\n    'Number',\n    'JOBS_PAST_24_HOURS',\n    CAST(COUNT(*) AS REAL)\nFROM jobs\nWHERE run_at >= UNIX_TIMESTAMP() - 86400\nUNION ALL\nSELECT\n    6,\n    'Number',\n    'JOBS_PAST_7_DAYS',\n    CAST(COUNT(*) AS REAL)\nFROM jobs\nWHERE run_at >= UNIX_TIMESTAMP() - 604800\nUNION ALL\nSELECT\n    6,\n    'Number',\n    'KILLED_JOBS_PAST_7_DAYS',\n    CAST(SUM(CASE WHEN status = 'Killed' THEN 1 ELSE 0 END) AS REAL)\nFROM jobs\nWHERE run_at >= UNIX_TIMESTAMP() - 604800\nUNION ALL\nSELECT\n    6,\n    'Percentage',\n    'SUCCESS_RATE_PAST_24H',\n    CAST(ROUND(100.0 * SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END) / IFNULL(COUNT(*), 1), 2) AS REAL)\nFROM jobs\nWHERE run_at >= UNIX_TIMESTAMP() - 86400\nUNION ALL\nSELECT\n    7,\n    'Decimal',\n    'AVG_JOBS_PER_HOUR_PAST_24H',\n    CAST(ROUND(COUNT(*) / 24.0, 2) AS REAL)\nFROM jobs\nWHERE run_at >= UNIX_TIMESTAMP() - 86400\nUNION ALL\nSELECT\n    7,\n    'Decimal',\n    'AVG_JOBS_PER_DAY_PAST_7D',\n    CAST(ROUND(COUNT(*) / 7.0, 2) AS REAL)\nFROM jobs\nWHERE run_at >= UNIX_TIMESTAMP() - 604800\nUNION ALL\nSELECT\n    8,\n    'Timestamp',\n    'MOST_RECENT_JOB',\n    CAST(MAX(run_at) AS REAL)\nFROM jobs\nUNION ALL\nSELECT\n    8,\n    'Timestamp',\n    'OLDEST_PENDING_JOB',\n    CAST(MIN(run_at) AS REAL)\nFROM jobs\nWHERE status = 'Pending'\n    AND run_at <= UNIX_TIMESTAMP()\nUNION ALL\nSELECT\n    8,\n    'Number',\n    'PEAK_HOUR_JOBS',\n    CAST(MAX(hourly_count) AS REAL)\nFROM (\n    SELECT\n        COUNT(*) as hourly_count\n    FROM jobs\n    WHERE run_at >= UNIX_TIMESTAMP() - 86400\n    GROUP BY HOUR(FROM_UNIXTIME(run_at))\n) AS hourly\nUNION ALL\nSELECT\n    9,\n    'Number',\n    'DB_PAGE_SIZE',\n    CAST(@@innodb_page_size AS REAL)\nUNION ALL\nSELECT\n    9,\n    'Number',\n    'DB_PAGE_COUNT',\n    CAST(VARIABLE_VALUE AS REAL)\nFROM performance_schema.global_status\nWHERE VARIABLE_NAME = 'Innodb_pages_written'\nUNION ALL\nSELECT\n    9,\n    'Number',\n    'DB_SIZE',\n    CAST(SUM(data_length + index_length) AS REAL)\nFROM information_schema.tables\nWHERE table_schema = DATABASE()\nORDER BY priority, statistic;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "priority",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | BINARY",
+          "max_size": 2
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "type",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL",
+          "max_size": 40
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "statistic",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL",
+          "max_size": 116
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "value",
+        "type_info": {
+          "type": "Double",
+          "flags": "BINARY",
+          "max_size": 23
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "abcf577fdaf6068b8d975a5e04b2aecd5363f4d6a747ae4d066878cfb3851937"
+}

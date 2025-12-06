@@ -1,0 +1,54 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT priority, type, statistic, value\nFROM (\n    -- Basic counts\n    SELECT 1 AS priority, 'Number' AS type, 'RUNNING_JOBS' AS statistic,\n        CAST(SUM(CASE WHEN status = 'Running' THEN 1 ELSE 0 END) AS REAL) AS value\n    FROM jobs WHERE job_type = ?\n    \n    UNION ALL\n    SELECT 1, 'Number', 'PENDING_JOBS',\n        CAST(SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    UNION ALL\n    SELECT 2, 'Number', 'FAILED_JOBS',\n        CAST(SUM(CASE WHEN status = 'Failed' THEN 1 ELSE 0 END) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    UNION ALL\n    SELECT 2, 'Number', 'ACTIVE_JOBS',\n        CAST(SUM(CASE WHEN status IN ('Pending', 'Queued', 'Running') THEN 1 ELSE 0 END) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    UNION ALL\n    SELECT 2, 'Number', 'STALE_RUNNING_JOBS',\n        CAST(COUNT(*) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND status = 'Running'\n        AND run_at < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))\n    \n    UNION ALL\n    SELECT 2, 'Percentage', 'KILL_RATE',\n        CAST(ROUND(100.0 * SUM(CASE WHEN status = 'Killed' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 2) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    -- Time-based counts\n    UNION ALL\n    SELECT 3, 'Number', 'JOBS_PAST_HOUR',\n        CAST(COUNT(*) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))\n    \n    UNION ALL\n    SELECT 3, 'Number', 'JOBS_TODAY',\n        CAST(COUNT(*) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND DATE(FROM_UNIXTIME(run_at)) = CURDATE()\n    \n    UNION ALL\n    SELECT 3, 'Number', 'KILLED_JOBS_TODAY',\n        CAST(SUM(CASE WHEN status = 'Killed' THEN 1 ELSE 0 END) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND DATE(FROM_UNIXTIME(run_at)) = CURDATE()\n    \n    UNION ALL\n    SELECT 3, 'Decimal', 'AVG_JOBS_PER_MINUTE_PAST_HOUR',\n        CAST(ROUND(COUNT(*) / 60.0, 2) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))\n    \n    -- Totals\n    UNION ALL\n    SELECT 4, 'Number', 'TOTAL_JOBS',\n        CAST(COUNT(*) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    UNION ALL\n    SELECT 4, 'Number', 'DONE_JOBS',\n        CAST(SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    UNION ALL\n    SELECT 4, 'Number', 'COMPLETED_JOBS',\n        CAST(SUM(CASE WHEN status IN ('Done', 'Failed', 'Killed') THEN 1 ELSE 0 END) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    UNION ALL\n    SELECT 4, 'Number', 'KILLED_JOBS',\n        CAST(SUM(CASE WHEN status = 'Killed' THEN 1 ELSE 0 END) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    UNION ALL\n    SELECT 4, 'Percentage', 'SUCCESS_RATE',\n        CAST(ROUND(100.0 * SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 2) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    -- Duration metrics\n    UNION ALL\n    SELECT 5, 'Decimal', 'AVG_JOB_DURATION_MINS',\n        CAST(ROUND(AVG((done_at - run_at) / 60.0), 2) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND status IN ('Done', 'Failed', 'Killed') AND done_at IS NOT NULL\n    \n    UNION ALL\n    SELECT 5, 'Decimal', 'LONGEST_RUNNING_JOB_MINS',\n        CAST(ROUND(MAX(CASE WHEN status = 'Running' THEN (UNIX_TIMESTAMP() - run_at) / 60.0 ELSE 0 END), 2) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    UNION ALL\n    SELECT 5, 'Number', 'QUEUE_BACKLOG',\n        CAST(SUM(CASE WHEN status = 'Pending' AND run_at <= UNIX_TIMESTAMP() THEN 1 ELSE 0 END) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    -- Extended time ranges\n    UNION ALL\n    SELECT 6, 'Number', 'JOBS_PAST_24_HOURS',\n        CAST(COUNT(*) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY))\n    \n    UNION ALL\n    SELECT 6, 'Number', 'JOBS_PAST_7_DAYS',\n        CAST(COUNT(*) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))\n    \n    UNION ALL\n    SELECT 6, 'Number', 'KILLED_JOBS_PAST_7_DAYS',\n        CAST(SUM(CASE WHEN status = 'Killed' THEN 1 ELSE 0 END) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))\n    \n    UNION ALL\n    SELECT 6, 'Percentage', 'SUCCESS_RATE_PAST_24H',\n        CAST(ROUND(100.0 * SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 2) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY))\n    \n    -- Averages over time\n    UNION ALL\n    SELECT 7, 'Decimal', 'AVG_JOBS_PER_HOUR_PAST_24H',\n        CAST(ROUND(COUNT(*) / 24.0, 2) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY))\n    \n    UNION ALL\n    SELECT 7, 'Decimal', 'AVG_JOBS_PER_DAY_PAST_7D',\n        CAST(ROUND(COUNT(*) / 7.0, 2) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))\n    \n    -- Timestamps\n    UNION ALL\n    SELECT 8, 'Timestamp', 'MOST_RECENT_JOB',\n        CAST(MAX(run_at) AS REAL)\n    FROM jobs WHERE job_type = ?\n    \n    UNION ALL\n    SELECT 8, 'Timestamp', 'OLDEST_PENDING_JOB',\n        CAST(MIN(run_at) AS REAL)\n    FROM jobs\n    WHERE job_type = ? AND status = 'Pending' AND run_at <= UNIX_TIMESTAMP()\n    \n    UNION ALL\n    SELECT 8, 'Number', 'PEAK_HOUR_JOBS',\n        CAST(MAX(hourly_count) AS REAL)\n    FROM (\n        SELECT COUNT(*) as hourly_count\n        FROM jobs\n        WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY))\n        GROUP BY HOUR(FROM_UNIXTIME(run_at))\n    ) AS hourly_jobs\n) results\nORDER BY priority, statistic\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "priority",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL",
+          "max_size": 2
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "type",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL",
+          "max_size": 40
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "statistic",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL",
+          "max_size": 116
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "value",
+        "type_info": {
+          "type": "Double",
+          "flags": "",
+          "max_size": 23
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 27
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "056f7df9050133ce3daf6ed787349128a1eda75be61be01b87a3f3fc2680396f"
+}

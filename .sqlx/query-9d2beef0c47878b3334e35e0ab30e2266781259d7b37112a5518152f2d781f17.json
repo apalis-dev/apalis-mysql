@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "Delete from\n    jobs\nwhere\n    status = 'Done'\n    OR status = 'Killed'\n    OR (\n        status = 'Failed'\n        AND max_attempts <= attempts\n    );\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "9d2beef0c47878b3334e35e0ab30e2266781259d7b37112a5518152f2d781f17"
+}
