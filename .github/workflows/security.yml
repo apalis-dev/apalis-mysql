@@ -1,4 +1,4 @@
-name: Security and Dependencies
+name: Security
 on:
   schedule:
     # Run security checks daily at 03:00 UTC
@@ -32,7 +32,6 @@ jobs:
 
       - name: Run cargo audit
         run: cargo audit --json > audit-results.json
-        continue-on-error: true
 
       - name: Upload audit results
         uses: actions/upload-artifact@v4

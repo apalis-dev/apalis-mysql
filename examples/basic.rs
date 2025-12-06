@@ -1,6 +1,6 @@
 use apalis::prelude::*;
-use apalis_mysql::MySqlStorage;
 use apalis_mysql::MySqlPool;
+use apalis_mysql::MySqlStorage;
 
 #[tokio::main]
 async fn main() {
