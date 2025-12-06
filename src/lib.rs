@@ -122,7 +122,7 @@ impl<T, C, F: Clone> Clone for MySqlStorage<T, C, F> {
 impl MySqlStorage<(), (), ()> {
     /// Get mysql migrations without running them
     #[cfg(feature = "migrate")]
-    #[must_use] 
+    #[must_use]
     pub fn migrations() -> sqlx::migrate::Migrator {
         sqlx::migrate!("./migrations")
     }
