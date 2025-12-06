@@ -121,28 +121,17 @@ impl<T, C, F: Clone> Clone for MysqlStorage<T, C, F> {
 }
 
 impl MysqlStorage<(), (), ()> {
-    /// Perform migrations for storage
-    #[cfg(feature = "migrate")]
-    pub async fn setup(pool: &Pool<MySql>) -> Result<(), sqlx::Error> {
-        sqlx::query("PRAGMA journal_mode = 'WAL';")
-            .execute(pool)
-            .await?;
-        sqlx::query("PRAGMA temp_store = 2;").execute(pool).await?;
-        sqlx::query("PRAGMA synchronous = NORMAL;")
-            .execute(pool)
-            .await?;
-        sqlx::query("PRAGMA cache_size = 64000;")
-            .execute(pool)
-            .await?;
-        Self::migrations().run(pool).await?;
-        Ok(())
-    }
-
     /// Get mysql migrations without running them
     #[cfg(feature = "migrate")]
-    #[must_use]
     pub fn migrations() -> sqlx::migrate::Migrator {
         sqlx::migrate!("./migrations")
+    }
+
+    /// Do migrations for mysql
+    #[cfg(feature = "migrate")]
+    pub async fn setup(pool: &Pool<MySql>) -> Result<(), sqlx::Error> {
+        Self::migrations().run(pool).await?;
+        Ok(())
     }
 }
 
@@ -326,7 +315,9 @@ mod tests {
     #[tokio::test]
     async fn basic_worker() {
         const ITEMS: usize = 10;
-        let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap();
+        let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap())
+            .await
+            .unwrap();
         MysqlStorage::setup(&pool).await.unwrap();
 
         let mut backend = MysqlStorage::new(&pool);
@@ -368,7 +359,9 @@ mod tests {
                 Err::<(), BoxDynError>("Intentional Error".into())
             });
 
-        let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap();
+        let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap())
+            .await
+            .unwrap();
         let mut mysql = MysqlStorage::new_with_config(
             &pool,
             &Config::new("workflow-queue").with_poll_interval(
@@ -483,7 +476,9 @@ mod tests {
                 worker.stop()
             });
 
-        let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap();
+        let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap())
+            .await
+            .unwrap();
         let mut mysql = MysqlStorage::new_with_config(&pool, &Config::new("text-pipeline"));
 
         MysqlStorage::setup(&pool).await.unwrap();

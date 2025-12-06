@@ -7,7 +7,9 @@ use sqlx::MySqlPool;
 
 #[tokio::main]
 async fn main() {
-    let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap();
+    let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap())
+        .await
+        .unwrap();
     MysqlStorage::setup(&pool).await.unwrap();
     let mut backend = MysqlStorage::new(&pool);
     backend.push_start(42).await.unwrap();
