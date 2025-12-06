@@ -12,7 +12,7 @@ use futures::{
 use sqlx::MySqlPool;
 use ulid::Ulid;
 
-use crate::{CompactType, MysqlStorage, MysqlTask, config::Config};
+use crate::{CompactType, MySqlStorage, MySqlTask, config::Config};
 
 type FlushFuture = BoxFuture<'static, Result<(), Arc<sqlx::Error>>>;
 
@@ -22,7 +22,7 @@ type FlushFuture = BoxFuture<'static, Result<(), Arc<sqlx::Error>>>;
 pub struct MySqlSink<Args, Compact, Codec> {
     pool: MySqlPool,
     config: Config,
-    buffer: Vec<MysqlTask<Compact>>,
+    buffer: Vec<MySqlTask<Compact>>,
     #[pin]
     flush_future: Option<Shared<FlushFuture>>,
     _marker: std::marker::PhantomData<(Args, Codec)>,
@@ -44,7 +44,7 @@ impl<Args, Compact, Codec> Clone for MySqlSink<Args, Compact, Codec> {
 pub async fn push_tasks(
     pool: MySqlPool,
     cfg: Config,
-    buffer: Vec<MysqlTask<CompactType>>,
+    buffer: Vec<MySqlTask<CompactType>>,
 ) -> Result<(), Arc<sqlx::Error>> {
     let mut tx = pool.begin().await?;
     for task in buffer {
@@ -94,7 +94,7 @@ impl<Args, Compact, Codec> MySqlSink<Args, Compact, Codec> {
     }
 }
 
-impl<Args, Encode, Fetcher> Sink<MysqlTask<CompactType>> for MysqlStorage<Args, Encode, Fetcher>
+impl<Args, Encode, Fetcher> Sink<MySqlTask<CompactType>> for MySqlStorage<Args, Encode, Fetcher>
 where
     Args: Send + Sync + 'static,
 {
@@ -104,7 +104,7 @@ where
         Poll::Ready(Ok(()))
     }
 
-    fn start_send(self: Pin<&mut Self>, item: MysqlTask<CompactType>) -> Result<(), Self::Error> {
+    fn start_send(self: Pin<&mut Self>, item: MySqlTask<CompactType>) -> Result<(), Self::Error> {
         // Add the item to the buffer
         self.project().sink.buffer.push(item);
         Ok(())

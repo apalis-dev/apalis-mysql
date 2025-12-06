@@ -1,7 +1,7 @@
 use apalis_core::backend::{BackendExt, Metrics, Statistic};
 use ulid::Ulid;
 
-use crate::{CompactType, MysqlStorage, SqlContext};
+use crate::{CompactType, MySqlStorage, SqlContext};
 
 struct StatisticRow {
     /// The priority of the statistic (lower number means higher priority)
@@ -14,7 +14,7 @@ struct StatisticRow {
     pub value: Option<f64>,
 }
 
-impl<Args, D, F> Metrics for MysqlStorage<Args, D, F>
+impl<Args, D, F> Metrics for MySqlStorage<Args, D, F>
 where
     Self:
         BackendExt<Context = SqlContext, Compact = CompactType, IdType = Ulid, Error = sqlx::Error>,

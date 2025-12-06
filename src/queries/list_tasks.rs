@@ -5,9 +5,9 @@ use apalis_core::{
 use apalis_sql::from_row::{FromRowError, TaskRow};
 use ulid::Ulid;
 
-use crate::{CompactType, MysqlStorage, MysqlTask, SqlContext, from_row::MySqlTaskRow};
+use crate::{CompactType, MySqlStorage, MySqlTask, SqlContext, from_row::MySqlTaskRow};
 
-impl<Args, D, F> ListTasks<Args> for MysqlStorage<Args, D, F>
+impl<Args, D, F> ListTasks<Args> for MySqlStorage<Args, D, F>
 where
     Self:
         BackendExt<Context = SqlContext, Compact = CompactType, IdType = Ulid, Error = sqlx::Error>,
@@ -19,7 +19,7 @@ where
         &self,
         queue: &str,
         filter: &Filter,
-    ) -> impl Future<Output = Result<Vec<MysqlTask<Args>>, Self::Error>> + Send {
+    ) -> impl Future<Output = Result<Vec<MySqlTask<Args>>, Self::Error>> + Send {
         let queue = queue.to_owned();
         let pool = self.pool.clone();
         let limit = filter.limit() as i32;
@@ -56,7 +56,7 @@ where
     }
 }
 
-impl<Args, D, F> ListAllTasks for MysqlStorage<Args, D, F>
+impl<Args, D, F> ListAllTasks for MySqlStorage<Args, D, F>
 where
     Self:
         BackendExt<Context = SqlContext, Compact = CompactType, IdType = Ulid, Error = sqlx::Error>,

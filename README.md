@@ -4,7 +4,7 @@ Background task processing in rust using `apalis` and `mysql`
 
 ## Features
 
-- **Reliable job queue** using Mysql as the backend.
+- **Reliable job queue** using MySql as the backend.
 - **Multiple storage types**: standard polling and `trigger` based storages.
 - **Custom codecs** for serializing/deserializing job arguments as bytes.
 - **Heartbeat and orphaned job re-enqueueing** for robust task processing.
@@ -13,14 +13,14 @@ Background task processing in rust using `apalis` and `mysql`
 
 ## Storage Types
 
-- [`MysqlStorage`]: Standard polling-based storage.
-- [`SharedMysqlStorage`]: Shared storage for multiple job types, reuses the connection.
+- [`MySqlStorage`]: Standard polling-based storage.
+- [`SharedMySqlStorage`]: Shared storage for multiple job types, reuses the connection.
 
-The naming is designed to clearly indicate the storage mechanism and its capabilities, but under the hood the result is the `MysqlStorage` struct with different configurations.
+The naming is designed to clearly indicate the storage mechanism and its capabilities, but under the hood the result is the `MySqlStorage` struct with different configurations.
 
 ## Setting up
 
-You need a working Mysql server setup.
+You need a working MySql server setup.
 Here is a quick command using docker.
 
 ```sh
@@ -32,11 +32,16 @@ docker run -d --name test-mysql -e MYSQL_ROOT_PASSWORD=strong_password -p 3306:3
 ### Basic Worker Example
 
 ```rust,no_run
+use apalis_mysql::*;
+use futures::stream::{self, StreamExt};
+use apalis::prelude::*;
+use std::time::Duration;
+
 #[tokio::main]
 async fn main() {
-    let pool = MysqlPool::connect(env!("DATABASE_URL")).await.unwrap();
-    MysqlStorage::setup(&pool).await.unwrap();
-    let mut backend = MysqlStorage::new(&pool);
+    let pool = MySqlPool::connect(env!("DATABASE_URL")).await.unwrap();
+    MySqlStorage::setup(&pool).await.unwrap();
+    let mut backend = MySqlStorage::new(&pool);
 
     let mut start = 0;
     let mut items = stream::repeat_with(move || {
@@ -45,10 +50,10 @@ async fn main() {
             .run_after(Duration::from_secs(1))
             .with_ctx(SqlContext::new().with_priority(1))
             .build();
-        Ok(task)
+        task
     })
     .take(10);
-    backend.send_all(&mut items).await.unwrap();
+    backend.push_all(&mut items).await.unwrap();
 
     async fn send_reminder(item: usize, wrk: WorkerContext) -> Result<(), BoxDynError> {
         Ok(())
@@ -64,11 +69,16 @@ async fn main() {
 ### Workflow Example
 
 ```rust,no_run
+use apalis_mysql::*;
+use apalis::prelude::*;
+use std::time::Duration;
+use apalis_workflow::*;
+
 #[tokio::main]
 async fn main() {
-    let workflow = WorkFlow::new("odd-numbers-workflow")
-        .then(|a: usize| async move {
-            Ok::<_, WorkflowError>((0..=a).collect::<Vec<_>>())
+    let workflow = Workflow::new("odd-numbers-workflow")
+        .and_then(|a: usize| async move {
+            Ok::<_, BoxDynError>((0..=a).collect::<Vec<_>>())
         })
         .filter_map(|x| async move {
             if x % 2 != 0 { Some(x) } else { None }
@@ -80,16 +90,16 @@ async fn main() {
             if x % 5 != 0 { Some(x) } else { None }
         })
         .delay_for(Duration::from_millis(1000))
-        .then(|a: Vec<usize>| async move {
+        .and_then(|a: Vec<usize>| async move {
             println!("Sum: {}", a.iter().sum::<usize>());
-            Ok::<(), WorkflowError>(())
+            Ok::<(), BoxDynError>(())
         });
 
-    let pool = MysqlPool::connect(env!("DATABASE_URL")).await.unwrap();
-    MysqlStorage::setup(&pool).await.unwrap();
-    let mut backend = MysqlStorage::new_in_queue(&pool, "test-workflow");
+    let pool = MySqlPool::connect(env!("DATABASE_URL")).await.unwrap();
+    MySqlStorage::setup(&pool).await.unwrap();
+    let mut backend = MySqlStorage::new_in_queue(&pool, "test-workflow");
 
-    backend.push(100usize).await.unwrap();
+    backend.push_start(100usize).await.unwrap();
 
     let worker = WorkerBuilder::new("rango-tango")
         .backend(backend)
@@ -110,13 +120,18 @@ async fn main() {
 This shows an example of multiple backends using the same connection.
 This can improve performance if you have many types of jobs.
 
-```rs
+```rs,no_run
+use apalis_mysql::*;
+use futures::stream;
+use apalis::prelude::*;
+use std::time::Duration;
+
 #[tokio::main]
 async fn main() {
-    let pool = MysqlPool::connect(env!("DATABASE_URL"))
+    let pool = MySqlPool::connect(env!("DATABASE_URL"))
         .await
         .unwrap();
-    let mut store = SharedMysqlStorage::new(pool);
+    let mut store = SharedMySqlStorage::new(pool);
 
     let mut map_store = store.make_shared().unwrap();
 
@@ -151,7 +166,7 @@ async fn main() {
 ## Observability
 
 You can track your jobs using [apalis-board](https://github.com/apalis-dev/apalis-board).
-![Task](https://github.com/apalis-dev/apalis-board/raw/master/screenshots/task.png)
+![Task](https://github.com/apalis-dev/apalis-board/raw/main/screenshots/task.png)
 
 ## License
 

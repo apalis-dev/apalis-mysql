@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "SELECT\n    id,\n    status,\n    last_result as result\nFROM\n    jobs\nWHERE\n    id IN (\n        SELECT\n            jt.value\n        FROM\n            JSON_TABLE(\n                ?, '$[*]'\n                COLUMNS (value INT PATH '$')\n            ) AS jt\n    )\n    AND (\n        status = 'Done'\n        OR (\n            status = 'Failed'\n            AND attempts >= max_attempts\n        )\n        OR status = 'Killed'\n    )\n",
+  "query": "SELECT\n    id,\n    status,\n    last_result as result\nFROM\n    jobs\nWHERE\n    id COLLATE utf8mb4_unicode_ci IN (\n        SELECT\n            jt.value COLLATE utf8mb4_unicode_ci\n        FROM\n            JSON_TABLE(\n                CAST(? AS JSON), '$[*]'\n                COLUMNS (value VARCHAR(255) PATH '$')\n            ) AS jt\n    )\n    AND (\n        status = 'Done'\n        OR (\n            status = 'Failed'\n            AND attempts >= max_attempts\n        )\n        OR status = 'Killed'\n    )\n",
   "describe": {
     "columns": [
       {
@@ -40,5 +40,5 @@
       true
     ]
   },
-  "hash": "3adb3904bac09a612d5c3e83e5af89240eb36fb5577f7f5d149ab978a557a98e"
+  "hash": "cc1a32f1a8accc7554e7af8e9956a61863566c7b7160da4916e1e50466052723"
 }

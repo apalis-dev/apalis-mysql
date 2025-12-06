@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use apalis::prelude::*;
-use apalis_mysql::MysqlStorage;
+use apalis_mysql::MySqlStorage;
 use apalis_workflow::*;
 use sqlx::MySqlPool;
 
@@ -10,8 +10,8 @@ async fn main() {
     let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap())
         .await
         .unwrap();
-    MysqlStorage::setup(&pool).await.unwrap();
-    let mut backend = MysqlStorage::new(&pool);
+    MySqlStorage::setup(&pool).await.unwrap();
+    let mut backend = MySqlStorage::new(&pool);
     backend.push_start(42).await.unwrap();
 
     async fn task1(task: u32) -> String {

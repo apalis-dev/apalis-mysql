@@ -8,7 +8,7 @@ use futures::{StreamExt, stream::BoxStream};
 use serde::de::DeserializeOwned;
 use ulid::Ulid;
 
-use crate::{CompactType, MysqlStorage};
+use crate::{CompactType, MySqlStorage};
 
 #[derive(Debug)]
 struct ResultRow {
@@ -17,7 +17,7 @@ struct ResultRow {
     pub result: Option<String>,
 }
 
-impl<O: 'static + Send, Args, F, Decode> WaitForCompletion<O> for MysqlStorage<Args, Decode, F>
+impl<O: 'static + Send, Args, F, Decode> WaitForCompletion<O> for MySqlStorage<Args, Decode, F>
 where
     Self: BackendExt<IdType = Ulid, Codec = Decode, Error = sqlx::Error, Compact = CompactType>,
     Result<O, String>: DeserializeOwned,

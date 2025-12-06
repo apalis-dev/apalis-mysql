@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    CompactType, Config, MysqlStorage, MysqlTask,
+    CompactType, Config, MySqlStorage, MySqlTask,
     ack::{LockTaskLayer, MySqlAck},
     fetcher::MySqlPollFetcher,
     initial_heartbeat, keep_alive,
@@ -37,14 +37,14 @@ use ulid::Ulid;
 
 /// Shared MySql storage backend that can be used across multiple workers
 #[derive(Clone, Debug)]
-pub struct SharedMysqlStorage<Decode> {
+pub struct SharedMySqlStorage<Decode> {
     pool: MySqlPool,
-    registry: Arc<Mutex<HashMap<String, Sender<MysqlTask<CompactType>>>>>,
+    registry: Arc<Mutex<HashMap<String, Sender<MySqlTask<CompactType>>>>>,
     drive: Shared<BoxFuture<'static, ()>>,
     _marker: PhantomData<Decode>,
 }
 
-impl<Decode> SharedMysqlStorage<Decode> {
+impl<Decode> SharedMySqlStorage<Decode> {
     /// Get a reference to the underlying MySql connection pool
     #[must_use]
     pub fn pool(&self) -> &MySqlPool {
@@ -52,7 +52,7 @@ impl<Decode> SharedMysqlStorage<Decode> {
     }
 }
 
-impl SharedMysqlStorage<JsonCodec<CompactType>> {
+impl SharedMySqlStorage<JsonCodec<CompactType>> {
     /// Create a new shared MySql storage backend with the given database URL
     #[must_use]
     pub fn new(url: &str) -> Self {
@@ -60,12 +60,12 @@ impl SharedMysqlStorage<JsonCodec<CompactType>> {
     }
     /// Create a new shared MySql storage backend with the given database URL and codec
     #[must_use]
-    pub fn new_with_codec<Codec>(url: &str) -> SharedMysqlStorage<Codec> {
+    pub fn new_with_codec<Codec>(url: &str) -> SharedMySqlStorage<Codec> {
         let pool = PoolOptions::<MySql>::new()
             .connect_lazy(url)
             .expect("Failed to create MySql pool");
 
-        let registry: Arc<Mutex<HashMap<String, Sender<MysqlTask<CompactType>>>>> =
+        let registry: Arc<Mutex<HashMap<String, Sender<MySqlTask<CompactType>>>>> =
             Arc::new(Mutex::new(HashMap::default()));
         let drive = {
             let pool = pool.clone();
@@ -113,7 +113,7 @@ impl SharedMysqlStorage<JsonCodec<CompactType>> {
                     query.execute(&mut *tx).await.unwrap();
 
                     // Convert rows to tasks
-                    let tasks: Vec<MysqlTask<CompactType>> = rows
+                    let tasks: Vec<MySqlTask<CompactType>> = rows
                         .into_iter()
                         .map(|r| {
                             let row: TaskRow = r.try_into()?;
@@ -135,7 +135,7 @@ impl SharedMysqlStorage<JsonCodec<CompactType>> {
             };
             fut.boxed().shared()
         };
-        SharedMysqlStorage {
+        SharedMySqlStorage {
             pool,
             drive,
             registry,
@@ -156,9 +156,9 @@ pub enum SharedMySqlError {
 }
 
 impl<Args, Decode: Codec<Args, Compact = CompactType>> MakeShared<Args>
-    for SharedMysqlStorage<Decode>
+    for SharedMySqlStorage<Decode>
 {
-    type Backend = MysqlStorage<Args, Decode, SharedFetcher<CompactType>>;
+    type Backend = MySqlStorage<Args, Decode, SharedFetcher<CompactType>>;
     type Config = Config;
     type MakeError = SharedMySqlError;
     fn make_shared(&mut self) -> Result<Self::Backend, Self::MakeError>
@@ -182,7 +182,7 @@ impl<Args, Decode: Codec<Args, Compact = CompactType>> MakeShared<Args>
             ));
         }
         let sink = MySqlSink::new(&self.pool, &config);
-        Ok(MysqlStorage {
+        Ok(MySqlStorage {
             config,
             fetcher: SharedFetcher {
                 poller: self.drive.clone(),
@@ -199,11 +199,11 @@ impl<Args, Decode: Codec<Args, Compact = CompactType>> MakeShared<Args>
 #[derive(Clone, Debug)]
 pub struct SharedFetcher<Compact> {
     poller: Shared<BoxFuture<'static, ()>>,
-    receiver: Arc<std::sync::Mutex<Receiver<MysqlTask<Compact>>>>,
+    receiver: Arc<std::sync::Mutex<Receiver<MySqlTask<Compact>>>>,
 }
 
 impl<Compact> Stream for SharedFetcher<Compact> {
-    type Item = MysqlTask<Compact>;
+    type Item = MySqlTask<Compact>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
@@ -215,7 +215,7 @@ impl<Compact> Stream for SharedFetcher<Compact> {
     }
 }
 
-impl<Args, Decode> Backend for MysqlStorage<Args, Decode, SharedFetcher<CompactType>>
+impl<Args, Decode> Backend for MySqlStorage<Args, Decode, SharedFetcher<CompactType>>
 where
     Args: Send + 'static + Unpin + Sync,
     Decode: Codec<Args, Compact = CompactType> + 'static + Unpin + Send + Sync,
@@ -227,7 +227,7 @@ where
 
     type Error = sqlx::Error;
 
-    type Stream = TaskStream<MysqlTask<Args>, sqlx::Error>;
+    type Stream = TaskStream<MySqlTask<Args>, sqlx::Error>;
 
     type Beat = BoxStream<'static, Result<(), sqlx::Error>>;
 
@@ -270,7 +270,7 @@ where
 }
 
 impl<Args, Decode: Send + 'static> BackendExt
-    for MysqlStorage<Args, Decode, SharedFetcher<CompactType>>
+    for MySqlStorage<Args, Decode, SharedFetcher<CompactType>>
 where
     Self: Backend<Args = Args, IdType = Ulid, Context = SqlContext, Error = sqlx::Error>,
     Decode: Codec<Args, Compact = CompactType> + Send + 'static,
@@ -279,18 +279,18 @@ where
 {
     type Codec = Decode;
     type Compact = CompactType;
-    type CompactStream = TaskStream<MysqlTask<Self::Compact>, sqlx::Error>;
+    type CompactStream = TaskStream<MySqlTask<Self::Compact>, sqlx::Error>;
 
     fn poll_compact(self, worker: &WorkerContext) -> Self::CompactStream {
         self.poll_shared(worker).boxed()
     }
 }
 
-impl<Args, Decode: Send + 'static> MysqlStorage<Args, Decode, SharedFetcher<CompactType>> {
+impl<Args, Decode: Send + 'static> MySqlStorage<Args, Decode, SharedFetcher<CompactType>> {
     fn poll_shared(
         self,
         worker: &WorkerContext,
-    ) -> impl Stream<Item = Result<Option<MysqlTask<CompactType>>, sqlx::Error>> + 'static {
+    ) -> impl Stream<Item = Result<Option<MySqlTask<CompactType>>, sqlx::Error>> + 'static {
         let pool = self.pool.clone();
         let worker = worker.clone();
         // Initial registration heartbeat
@@ -302,7 +302,7 @@ impl<Args, Decode: Send + 'static> MysqlStorage<Args, Decode, SharedFetcher<Comp
             pool,
             self.config.clone(),
             worker.clone(),
-            "SharedMysqlStorage",
+            "SharedMySqlStorage",
         );
         let starter = stream::once(init)
             .map_ok(|_| None) // Noop after initial heartbeat
@@ -331,8 +331,8 @@ mod tests {
 
     #[tokio::test]
     async fn basic_worker() {
-        let mut store = SharedMysqlStorage::new(&std::env::var("DATABASE_URL").unwrap());
-        MysqlStorage::setup(store.pool()).await.unwrap();
+        let mut store = SharedMySqlStorage::new(&std::env::var("DATABASE_URL").unwrap());
+        MySqlStorage::setup(store.pool()).await.unwrap();
 
         let mut map_store = store.make_shared().unwrap();
 

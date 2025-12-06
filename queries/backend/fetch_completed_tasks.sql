@@ -5,13 +5,13 @@ SELECT
 FROM
     jobs
 WHERE
-    id IN (
+    id COLLATE utf8mb4_unicode_ci IN (
         SELECT
-            jt.value
+            jt.value COLLATE utf8mb4_unicode_ci
         FROM
             JSON_TABLE(
-                ?, '$[*]'
-                COLUMNS (value INT PATH '$')
+                CAST(? AS JSON), '$[*]'
+                COLUMNS (value VARCHAR(255) PATH '$')
             ) AS jt
     )
     AND (

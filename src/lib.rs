@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
 //!
-//! [`MysqlStorageWithHook`]: crate::MysqlStorage
 use std::{fmt, marker::PhantomData};
 
 use apalis_core::{
@@ -48,25 +47,25 @@ mod shared;
 pub mod sink;
 
 /// Type alias for a task stored in mysql backend
-pub type MysqlTask<Args> = Task<Args, SqlContext, Ulid>;
+pub type MySqlTask<Args> = Task<Args, SqlContext, Ulid>;
 pub use config::Config;
-pub use shared::{SharedMySqlError, SharedMysqlStorage};
+pub use shared::{SharedMySqlError, SharedMySqlStorage};
 
 /// CompactType is the type used for compact serialization in mysql backend
 pub type CompactType = Vec<u8>;
 
-/// MysqlStorage is a storage backend for apalis using mysql as the database.
+/// MySqlStorage is a storage backend for apalis using mysql as the database.
 ///
 /// It supports both standard polling and event-driven (hooked) storage mechanisms.
 ///
 #[doc = features_table! {
     setup = r#"
         # {
-        #   use apalis_mysql::MysqlStorage;
+        #   use apalis_mysql::MySqlStorage;
         #   use sqlx::MySqlPool;
         #   let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap()).await.unwrap();
-        #   MysqlStorage::setup(&pool).await.unwrap();
-        #   MysqlStorage::new(&pool)
+        #   MySqlStorage::setup(&pool).await.unwrap();
+        #   MySqlStorage::new(&pool)
         # };
     "#,
 
@@ -77,7 +76,7 @@ pub type CompactType = Vec<u8>;
     WebUI => supported("Expose a web interface for monitoring tasks", true),
     FetchById => supported("Allow fetching a task by its ID", false),
     RegisterWorker => supported("Allow registering a worker with the backend", false),
-    MakeShared => supported("Share one connection across multiple workers via [`SharedMysqlStorage`]", false),
+    MakeShared => supported("Share one connection across multiple workers via [`SharedMySqlStorage`]", false),
     WaitForCompletion => supported("Wait for tasks to complete without blocking", true),
     ResumeById => supported("Resume a task by its ID", false),
     ResumeAbandoned => supported("Resume abandoned tasks", false),
@@ -85,7 +84,7 @@ pub type CompactType = Vec<u8>;
     ListTasks => supported("List all tasks in the backend", false),
 }]
 #[pin_project::pin_project]
-pub struct MysqlStorage<T, C, Fetcher> {
+pub struct MySqlStorage<T, C, Fetcher> {
     pool: Pool<MySql>,
     job_type: PhantomData<T>,
     config: Config,
@@ -96,9 +95,9 @@ pub struct MysqlStorage<T, C, Fetcher> {
     fetcher: Fetcher,
 }
 
-impl<T, C, F> fmt::Debug for MysqlStorage<T, C, F> {
+impl<T, C, F> fmt::Debug for MySqlStorage<T, C, F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("MysqlStorage")
+        f.debug_struct("MySqlStorage")
             .field("pool", &self.pool)
             .field("job_type", &"PhantomData<T>")
             .field("config", &self.config)
@@ -107,7 +106,7 @@ impl<T, C, F> fmt::Debug for MysqlStorage<T, C, F> {
     }
 }
 
-impl<T, C, F: Clone> Clone for MysqlStorage<T, C, F> {
+impl<T, C, F: Clone> Clone for MySqlStorage<T, C, F> {
     fn clone(&self) -> Self {
         Self {
             sink: self.sink.clone(),
@@ -120,7 +119,7 @@ impl<T, C, F: Clone> Clone for MysqlStorage<T, C, F> {
     }
 }
 
-impl MysqlStorage<(), (), ()> {
+impl MySqlStorage<(), (), ()> {
     /// Get mysql migrations without running them
     #[cfg(feature = "migrate")]
     pub fn migrations() -> sqlx::migrate::Migrator {
@@ -135,14 +134,14 @@ impl MysqlStorage<(), (), ()> {
     }
 }
 
-impl<T> MysqlStorage<T, (), ()> {
-    /// Create a new MysqlStorage
+impl<T> MySqlStorage<T, (), ()> {
+    /// Create a new MySqlStorage
     #[must_use]
     pub fn new(
         pool: &Pool<MySql>,
-    ) -> MysqlStorage<T, JsonCodec<CompactType>, fetcher::MySqlFetcher> {
+    ) -> MySqlStorage<T, JsonCodec<CompactType>, fetcher::MySqlFetcher> {
         let config = Config::new(std::any::type_name::<T>());
-        MysqlStorage {
+        MySqlStorage {
             pool: pool.clone(),
             job_type: PhantomData,
             sink: MySqlSink::new(pool, &config),
@@ -152,14 +151,14 @@ impl<T> MysqlStorage<T, (), ()> {
         }
     }
 
-    /// Create a new MysqlStorage for a specific queue
+    /// Create a new MySqlStorage for a specific queue
     #[must_use]
     pub fn new_in_queue(
         pool: &Pool<MySql>,
         queue: &str,
-    ) -> MysqlStorage<T, JsonCodec<CompactType>, fetcher::MySqlFetcher> {
+    ) -> MySqlStorage<T, JsonCodec<CompactType>, fetcher::MySqlFetcher> {
         let config = Config::new(queue);
-        MysqlStorage {
+        MySqlStorage {
             pool: pool.clone(),
             job_type: PhantomData,
             sink: MySqlSink::new(pool, &config),
@@ -169,13 +168,13 @@ impl<T> MysqlStorage<T, (), ()> {
         }
     }
 
-    /// Create a new MysqlStorage with config
+    /// Create a new MySqlStorage with config
     #[must_use]
     pub fn new_with_config(
         pool: &Pool<MySql>,
         config: &Config,
-    ) -> MysqlStorage<T, JsonCodec<CompactType>, fetcher::MySqlFetcher> {
-        MysqlStorage {
+    ) -> MySqlStorage<T, JsonCodec<CompactType>, fetcher::MySqlFetcher> {
+        MySqlStorage {
             pool: pool.clone(),
             job_type: PhantomData,
             config: config.clone(),
@@ -186,10 +185,10 @@ impl<T> MysqlStorage<T, (), ()> {
     }
 }
 
-impl<T, C, F> MysqlStorage<T, C, F> {
+impl<T, C, F> MySqlStorage<T, C, F> {
     /// Change the codec used for serialization/deserialization
-    pub fn with_codec<D>(self) -> MysqlStorage<T, D, F> {
-        MysqlStorage {
+    pub fn with_codec<D>(self) -> MySqlStorage<T, D, F> {
+        MySqlStorage {
             sink: MySqlSink::new(&self.pool, &self.config),
             pool: self.pool,
             job_type: PhantomData,
@@ -210,7 +209,7 @@ impl<T, C, F> MysqlStorage<T, C, F> {
     }
 }
 
-impl<Args, Decode> Backend for MysqlStorage<Args, Decode, MySqlFetcher>
+impl<Args, Decode> Backend for MySqlStorage<Args, Decode, MySqlFetcher>
 where
     Args: Send + 'static + Unpin,
     Decode: Codec<Args, Compact = CompactType> + 'static + Send,
@@ -223,7 +222,7 @@ where
 
     type Error = sqlx::Error;
 
-    type Stream = TaskStream<MysqlTask<Args>, sqlx::Error>;
+    type Stream = TaskStream<MySqlTask<Args>, sqlx::Error>;
 
     type Beat = BoxStream<'static, Result<(), sqlx::Error>>;
 
@@ -263,7 +262,7 @@ where
     }
 }
 
-impl<Args, Decode: Send + 'static> BackendExt for MysqlStorage<Args, Decode, MySqlFetcher>
+impl<Args, Decode: Send + 'static> BackendExt for MySqlStorage<Args, Decode, MySqlFetcher>
 where
     Self: Backend<Args = Args, IdType = Ulid, Context = SqlContext, Error = sqlx::Error>,
     Decode: Codec<Args, Compact = CompactType> + Send + 'static,
@@ -272,24 +271,24 @@ where
 {
     type Codec = Decode;
     type Compact = CompactType;
-    type CompactStream = TaskStream<MysqlTask<Self::Compact>, sqlx::Error>;
+    type CompactStream = TaskStream<MySqlTask<Self::Compact>, sqlx::Error>;
 
     fn poll_compact(self, worker: &WorkerContext) -> Self::CompactStream {
         self.poll_default(worker).boxed()
     }
 }
 
-impl<Args, Decode: Send + 'static, F> MysqlStorage<Args, Decode, F> {
+impl<Args, Decode: Send + 'static, F> MySqlStorage<Args, Decode, F> {
     fn poll_default(
         self,
         worker: &WorkerContext,
-    ) -> impl Stream<Item = Result<Option<MysqlTask<CompactType>>, sqlx::Error>> + Send + 'static
+    ) -> impl Stream<Item = Result<Option<MySqlTask<CompactType>>, sqlx::Error>> + Send + 'static
     {
         let fut = initial_heartbeat(
             self.pool.clone(),
             self.config().clone(),
             worker.clone(),
-            "MysqlStorage",
+            "MySqlStorage",
         );
         let register = stream::once(fut.map(|_| Ok(None)));
         register.chain(MySqlPollFetcher::<CompactType, Decode>::new(
@@ -318,9 +317,9 @@ mod tests {
         let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap())
             .await
             .unwrap();
-        MysqlStorage::setup(&pool).await.unwrap();
+        MySqlStorage::setup(&pool).await.unwrap();
 
-        let mut backend = MysqlStorage::new(&pool);
+        let mut backend = MySqlStorage::new(&pool);
 
         let mut start = 0;
 
@@ -362,7 +361,7 @@ mod tests {
         let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap())
             .await
             .unwrap();
-        let mut mysql = MysqlStorage::new_with_config(
+        let mut mysql = MySqlStorage::new_with_config(
             &pool,
             &Config::new("workflow-queue").with_poll_interval(
                 StrategyBuilder::new()
@@ -371,7 +370,7 @@ mod tests {
             ),
         );
 
-        MysqlStorage::setup(&pool).await.unwrap();
+        MySqlStorage::setup(&pool).await.unwrap();
 
         mysql.push_start(100usize).await.unwrap();
 
@@ -479,9 +478,9 @@ mod tests {
         let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap())
             .await
             .unwrap();
-        let mut mysql = MysqlStorage::new_with_config(&pool, &Config::new("text-pipeline"));
+        let mut mysql = MySqlStorage::new_with_config(&pool, &Config::new("text-pipeline"));
 
-        MysqlStorage::setup(&pool).await.unwrap();
+        MySqlStorage::setup(&pool).await.unwrap();
 
         let input = UserInput {
             text: "Rust makes systems programming delightful!".to_string(),

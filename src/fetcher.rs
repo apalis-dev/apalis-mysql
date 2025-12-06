@@ -17,7 +17,7 @@ use pin_project::pin_project;
 use sqlx::{MySql, MySqlPool, Pool};
 use ulid::Ulid;
 
-use crate::{CompactType, MysqlTask, config::Config, from_row::MySqlTaskRow};
+use crate::{CompactType, MySqlTask, config::Config, from_row::MySqlTaskRow};
 
 /// Fetch the next batch of tasks from the mysql backend
 pub async fn fetch_next(
@@ -80,8 +80,8 @@ pub async fn fetch_next(
 enum StreamState {
     Ready,
     Delay,
-    Fetch(BoxFuture<'static, Result<Vec<MysqlTask<CompactType>>, sqlx::Error>>),
-    Buffered(VecDeque<MysqlTask<CompactType>>),
+    Fetch(BoxFuture<'static, Result<Vec<MySqlTask<CompactType>>, sqlx::Error>>),
+    Buffered(VecDeque<MySqlTask<CompactType>>),
     Empty,
 }
 
@@ -147,7 +147,7 @@ impl<Decode> MySqlPollFetcher<CompactType, Decode> {
 }
 
 impl<Decode> Stream for MySqlPollFetcher<CompactType, Decode> {
-    type Item = Result<Option<MysqlTask<CompactType>>, sqlx::Error>;
+    type Item = Result<Option<MySqlTask<CompactType>>, sqlx::Error>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
@@ -229,7 +229,7 @@ impl<Decode> Stream for MySqlPollFetcher<CompactType, Decode> {
 
 impl<Compact, Decode> MySqlPollFetcher<Compact, Decode> {
     /// Take pending tasks from the fetcher
-    pub fn take_pending(&mut self) -> VecDeque<MysqlTask<Vec<u8>>> {
+    pub fn take_pending(&mut self) -> VecDeque<MySqlTask<Vec<u8>>> {
         match &mut self.state {
             StreamState::Buffered(tasks) => std::mem::take(tasks),
             _ => VecDeque::new(),

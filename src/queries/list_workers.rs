@@ -3,7 +3,7 @@ use chrono::NaiveDateTime;
 use futures::TryFutureExt;
 use ulid::Ulid;
 
-use crate::{CompactType, MysqlStorage, SqlContext};
+use crate::{CompactType, MySqlStorage, SqlContext};
 
 struct Worker {
     id: String,
@@ -14,7 +14,7 @@ struct Worker {
     started_at: Option<NaiveDateTime>,
 }
 
-impl<Args: Sync, D, F> ListWorkers for MysqlStorage<Args, D, F>
+impl<Args: Sync, D, F> ListWorkers for MySqlStorage<Args, D, F>
 where
     Self:
         BackendExt<Context = SqlContext, Compact = CompactType, IdType = Ulid, Error = sqlx::Error>,

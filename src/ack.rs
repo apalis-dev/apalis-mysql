@@ -10,7 +10,7 @@ use serde::Serialize;
 use sqlx::MySqlPool;
 use ulid::Ulid;
 
-use crate::MysqlTask;
+use crate::MySqlTask;
 
 #[derive(Clone, Debug)]
 pub struct MySqlAck {
@@ -127,9 +127,9 @@ pub struct LockTaskService<S> {
     pool: MySqlPool,
 }
 
-impl<S, Args> Service<MysqlTask<Args>> for LockTaskService<S>
+impl<S, Args> Service<MySqlTask<Args>> for LockTaskService<S>
 where
-    S: Service<MysqlTask<Args>> + Send + 'static,
+    S: Service<MySqlTask<Args>> + Send + 'static,
     S::Future: Send + 'static,
     S::Error: Into<BoxDynError>,
     Args: Send + 'static,
@@ -145,7 +145,7 @@ where
         self.inner.poll_ready(cx).map_err(|e| e.into())
     }
 
-    fn call(&mut self, mut req: MysqlTask<Args>) -> Self::Future {
+    fn call(&mut self, mut req: MySqlTask<Args>) -> Self::Future {
         let pool = self.pool.clone();
         let worker_id = req
             .parts

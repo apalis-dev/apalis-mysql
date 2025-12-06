@@ -1,9 +1,9 @@
 use apalis_core::backend::{BackendExt, Vacuum};
 use ulid::Ulid;
 
-use crate::{CompactType, MysqlStorage};
+use crate::{CompactType, MySqlStorage};
 
-impl<Args, F, Decode> Vacuum for MysqlStorage<Args, Decode, F>
+impl<Args, F, Decode> Vacuum for MySqlStorage<Args, Decode, F>
 where
     Self: BackendExt<IdType = Ulid, Codec = Decode, Error = sqlx::Error, Compact = CompactType>,
     F: Send,
