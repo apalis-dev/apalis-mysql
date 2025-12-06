@@ -62,7 +62,7 @@ dependencies = [
 
 [[package]]
 name = "apalis-mysql"
-version = "1.0.0-alpha.1"
+version = "1.0.0-beta.1"
 dependencies = [
  "apalis",
  "apalis-core",
