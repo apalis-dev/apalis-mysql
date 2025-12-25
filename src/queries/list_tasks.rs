@@ -5,12 +5,16 @@ use apalis_core::{
 use apalis_sql::from_row::{FromRowError, TaskRow};
 use ulid::Ulid;
 
-use crate::{CompactType, MySqlStorage, MySqlTask, SqlContext, from_row::MySqlTaskRow};
+use crate::{CompactType, MySqlContext, MySqlStorage, MySqlTask, from_row::MySqlTaskRow};
 
 impl<Args, D, F> ListTasks<Args> for MySqlStorage<Args, D, F>
 where
-    Self:
-        BackendExt<Context = SqlContext, Compact = CompactType, IdType = Ulid, Error = sqlx::Error>,
+    Self: BackendExt<
+            Context = MySqlContext,
+            Compact = CompactType,
+            IdType = Ulid,
+            Error = sqlx::Error,
+        >,
     D: Codec<Args, Compact = CompactType>,
     D::Error: std::error::Error + Send + Sync + 'static,
     Args: 'static,
@@ -58,8 +62,12 @@ where
 
 impl<Args, D, F> ListAllTasks for MySqlStorage<Args, D, F>
 where
-    Self:
-        BackendExt<Context = SqlContext, Compact = CompactType, IdType = Ulid, Error = sqlx::Error>,
+    Self: BackendExt<
+            Context = MySqlContext,
+            Compact = CompactType,
+            IdType = Ulid,
+            Error = sqlx::Error,
+        >,
 {
     fn list_all_tasks(
         &self,

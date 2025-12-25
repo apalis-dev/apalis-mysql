@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- _bump_: introducing mysql v1.0.0-rc.1 (#12)
+
 ## [1.0.0-beta.1] - 2025-12-06
 
 - _chore_: introducing mysql v1 (#6)
@@ -10,7 +12,7 @@
 
 ### 🐛 Bug Fixes
 
-- Reenqueue oprphaned before starting streaming (#507)
+- Reenqueue orphaned before starting streaming (#507)
 
 ### 💼 Other
 

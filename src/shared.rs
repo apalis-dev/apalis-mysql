@@ -8,23 +8,20 @@ use std::{
 };
 
 use crate::{
-    CompactType, Config, MySqlStorage, MySqlTask,
+    CompactType, Config, MySqlContext, MySqlStorage, MySqlTask,
     ack::{LockTaskLayer, MySqlAck},
     fetcher::MySqlPollFetcher,
     initial_heartbeat, keep_alive,
 };
 use crate::{from_row::MySqlTaskRow, sink::MySqlSink};
 
+use apalis_codec::json::JsonCodec;
 use apalis_core::{
-    backend::{
-        Backend, BackendExt, TaskStream,
-        codec::{Codec, json::JsonCodec},
-        shared::MakeShared,
-    },
+    backend::{Backend, BackendExt, TaskStream, codec::Codec, queue::Queue, shared::MakeShared},
     layers::Stack,
     worker::{context::WorkerContext, ext::ack::AcknowledgeLayer},
 };
-use apalis_sql::{context::SqlContext, from_row::TaskRow};
+use apalis_sql::from_row::TaskRow;
 use futures::{
     FutureExt, Stream, StreamExt, TryStreamExt,
     channel::mpsc::{self, Receiver, Sender},
@@ -117,7 +114,7 @@ impl SharedMySqlStorage<JsonCodec<CompactType>> {
                         .into_iter()
                         .map(|r| {
                             let row: TaskRow = r.try_into()?;
-                            row.try_into_task_compact::<Ulid>()
+                            row.try_into_task_compact()
                                 .map_err(|e| sqlx::Error::Protocol(e.to_string()))
                         })
                         .collect::<Result<Vec<_>, _>>()
@@ -231,7 +228,7 @@ where
 
     type Beat = BoxStream<'static, Result<(), sqlx::Error>>;
 
-    type Context = SqlContext;
+    type Context = MySqlContext;
 
     type Layer = Stack<AcknowledgeLayer<MySqlAck>, LockTaskLayer>;
 
@@ -272,7 +269,7 @@ where
 impl<Args, Decode: Send + 'static> BackendExt
     for MySqlStorage<Args, Decode, SharedFetcher<CompactType>>
 where
-    Self: Backend<Args = Args, IdType = Ulid, Context = SqlContext, Error = sqlx::Error>,
+    Self: Backend<Args = Args, IdType = Ulid, Context = MySqlContext, Error = sqlx::Error>,
     Decode: Codec<Args, Compact = CompactType> + Send + 'static,
     Decode::Error: std::error::Error + Send + Sync + 'static,
     Args: Send + 'static + Unpin,
@@ -280,6 +277,10 @@ where
     type Codec = Decode;
     type Compact = CompactType;
     type CompactStream = TaskStream<MySqlTask<Self::Compact>, sqlx::Error>;
+
+    fn get_queue(&self) -> Queue {
+        self.config.queue().to_owned()
+    }
 
     fn poll_compact(self, worker: &WorkerContext) -> Self::CompactStream {
         self.poll_shared(worker).boxed()

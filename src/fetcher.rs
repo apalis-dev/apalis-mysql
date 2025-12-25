@@ -11,20 +11,20 @@ use apalis_core::{
     task::Task,
     worker::context::WorkerContext,
 };
-use apalis_sql::{context::SqlContext, from_row::TaskRow};
+use apalis_sql::{config::Config, from_row::TaskRow};
 use futures::{FutureExt, future::BoxFuture, stream::Stream};
 use pin_project::pin_project;
 use sqlx::{MySql, MySqlPool, Pool};
 use ulid::Ulid;
 
-use crate::{CompactType, MySqlTask, config::Config, from_row::MySqlTaskRow};
+use crate::{CompactType, MySqlContext, MySqlTask, from_row::MySqlTaskRow};
 
 /// Fetch the next batch of tasks from the mysql backend
 pub async fn fetch_next(
     pool: MySqlPool,
     config: Config,
     worker: WorkerContext,
-) -> Result<Vec<Task<CompactType, SqlContext, Ulid>>, sqlx::Error> {
+) -> Result<Vec<Task<CompactType, MySqlContext, Ulid>>, sqlx::Error> {
     let mut tx = pool.begin().await?;
     let lock_at = chrono::Utc::now().naive_utc();
     let job_type = config.queue().to_string();
@@ -68,7 +68,7 @@ pub async fn fetch_next(
         .map(|r| {
             let mut row: TaskRow = r.try_into()?;
             row.lock_by = Some(worker.clone());
-            row.try_into_task_compact::<Ulid>()
+            row.try_into_task_compact()
                 .map_err(|e| sqlx::Error::Protocol(e.to_string()))
         })
         .collect();
