@@ -17,7 +17,7 @@ use pin_project::pin_project;
 use sqlx::{MySql, MySqlPool, Pool};
 use ulid::Ulid;
 
-use crate::{CompactType, MySqlContext, MySqlTask, from_row::MySqlTaskRow};
+use crate::{CompactType, MysqlDateTime, MySqlContext, MySqlTask, from_row::MySqlTaskRow, timestamp};
 
 /// Fetch the next batch of tasks from the mysql backend
 pub async fn fetch_next(
@@ -26,7 +26,7 @@ pub async fn fetch_next(
     worker: WorkerContext,
 ) -> Result<Vec<Task<CompactType, MySqlContext, Ulid>>, sqlx::Error> {
     let mut tx = pool.begin().await?;
-    let lock_at = chrono::Utc::now().naive_utc();
+    let lock_at = timestamp::now();
     let job_type = config.queue().to_string();
     let buffer_size = config.buffer_size() as i32;
     let worker = worker.name().clone();
@@ -66,7 +66,7 @@ pub async fn fetch_next(
     let res = rows
         .into_iter()
         .map(|r| {
-            let mut row: TaskRow = r.try_into()?;
+            let mut row: TaskRow<MysqlDateTime> = r.try_into()?;
             row.lock_by = Some(worker.clone());
             row.try_into_task_compact()
                 .map_err(|e| sqlx::Error::Protocol(e.to_string()))

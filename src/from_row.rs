@@ -1,4 +1,5 @@
-use chrono::NaiveDateTime;
+use crate::timestamp::RawDateTime;
+use crate::MysqlDateTime;
 use serde_json::Value;
 
 #[derive(Debug)]
@@ -9,19 +10,19 @@ pub(crate) struct MySqlTaskRow {
     pub(crate) status: Option<String>,
     pub(crate) attempts: Option<i32>,
     pub(crate) max_attempts: Option<i32>,
-    pub(crate) run_at: Option<NaiveDateTime>,
+    pub(crate) run_at: Option<RawDateTime>,
     pub(crate) last_result: Option<String>,
-    pub(crate) lock_at: Option<NaiveDateTime>,
+    pub(crate) lock_at: Option<RawDateTime>,
     pub(crate) lock_by: Option<String>,
-    pub(crate) done_at: Option<NaiveDateTime>,
+    pub(crate) done_at: Option<RawDateTime>,
     pub(crate) priority: Option<i32>,
     pub(crate) metadata: Option<Value>,
 }
 
-impl TryInto<apalis_sql::from_row::TaskRow> for MySqlTaskRow {
+impl TryInto<apalis_sql::from_row::TaskRow<MysqlDateTime>> for MySqlTaskRow {
     type Error = sqlx::Error;
 
-    fn try_into(self) -> Result<apalis_sql::from_row::TaskRow, Self::Error> {
+    fn try_into(self) -> Result<apalis_sql::from_row::TaskRow<MysqlDateTime>, Self::Error> {
         Ok(apalis_sql::from_row::TaskRow {
             job: self.job,
             id: self
@@ -38,13 +39,13 @@ impl TryInto<apalis_sql::from_row::TaskRow> for MySqlTaskRow {
                 .ok_or_else(|| sqlx::Error::Protocol("Missing attempts".into()))?
                 as usize,
             max_attempts: self.max_attempts.map(|v| v as usize),
-            run_at: self.run_at.map(|ts| ts.and_utc()),
+            run_at: self.run_at.map(MysqlDateTime::from),
             last_result: self
                 .last_result
                 .map(|res| serde_json::from_str(&res).unwrap_or(serde_json::Value::Null)),
-            lock_at: self.lock_at.map(|ts| ts.and_utc()),
+            lock_at: self.lock_at.map(MysqlDateTime::from),
             lock_by: self.lock_by,
-            done_at: self.done_at.map(|ts| ts.and_utc()),
+            done_at: self.done_at.map(MysqlDateTime::from),
             priority: self.priority.map(|v| v as usize),
             metadata: self.metadata,
         })

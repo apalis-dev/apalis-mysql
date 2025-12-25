@@ -5,7 +5,7 @@ use apalis_core::{
 use apalis_sql::from_row::{FromRowError, TaskRow};
 use ulid::Ulid;
 
-use crate::{CompactType, MySqlContext, MySqlStorage, MySqlTask, from_row::MySqlTaskRow};
+use crate::{CompactType, MysqlDateTime, MySqlContext, MySqlStorage, MySqlTask, from_row::MySqlTaskRow};
 
 impl<Args, D, F> ListTasks<Args> for MySqlStorage<Args, D, F>
 where
@@ -46,7 +46,7 @@ where
             .await?
             .into_iter()
             .map(|r| {
-                let row: TaskRow = r
+                let row: TaskRow<MysqlDateTime> = r
                     .try_into()
                     .map_err(|e: sqlx::Error| FromRowError::DecodeError(e.into()))?;
                 row.try_into_task_compact().and_then(|t| {
@@ -95,7 +95,7 @@ where
             .await?
             .into_iter()
             .map(|r| {
-                let row: TaskRow = r.try_into()?;
+                let row: TaskRow<MysqlDateTime> = r.try_into()?;
                 row.try_into_task_compact()
                     .map_err(|e| sqlx::Error::Protocol(e.to_string()))
             })

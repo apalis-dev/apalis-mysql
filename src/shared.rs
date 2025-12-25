@@ -8,16 +8,16 @@ use std::{
 };
 
 use crate::{
-    CompactType, Config, MySqlContext, MySqlStorage, MySqlTask,
+    CompactType, Config, MysqlDateTime, MySqlContext, MySqlStorage, MySqlTask,
     ack::{LockTaskLayer, MySqlAck},
     fetcher::MySqlPollFetcher,
-    initial_heartbeat, keep_alive,
+    initial_heartbeat, keep_alive, timestamp,
 };
 use crate::{from_row::MySqlTaskRow, sink::MySqlSink};
 
 use apalis_codec::json::JsonCodec;
 use apalis_core::{
-    backend::{Backend, BackendExt, TaskStream, codec::Codec, queue::Queue, shared::MakeShared},
+    backend::{Backend, BackendExt, TaskStream, codec::Codec, shared::MakeShared},
     layers::Stack,
     worker::{context::WorkerContext, ext::ack::AcknowledgeLayer},
 };
@@ -74,7 +74,7 @@ impl SharedMySqlStorage<JsonCodec<CompactType>> {
                     interval.await;
                     let mut r = registry.lock().await;
                     let job_types: HashSet<String> = r.keys().cloned().collect();
-                    let lock_at = chrono::Utc::now().naive_utc();
+                    let lock_at = timestamp::now();
                     let job_types = serde_json::to_string(&job_types).unwrap();
                     let mut tx = pool.begin().await.unwrap();
                     let rows = sqlx::query_file_as!(
@@ -113,7 +113,7 @@ impl SharedMySqlStorage<JsonCodec<CompactType>> {
                     let tasks: Vec<MySqlTask<CompactType>> = rows
                         .into_iter()
                         .map(|r| {
-                            let row: TaskRow = r.try_into()?;
+                            let row: TaskRow<MysqlDateTime> = r.try_into()?;
                             row.try_into_task_compact()
                                 .map_err(|e| sqlx::Error::Protocol(e.to_string()))
                         })
@@ -277,10 +277,6 @@ where
     type Codec = Decode;
     type Compact = CompactType;
     type CompactStream = TaskStream<MySqlTask<Self::Compact>, sqlx::Error>;
-
-    fn get_queue(&self) -> Queue {
-        self.config.queue().to_owned()
-    }
 
     fn poll_compact(self, worker: &WorkerContext) -> Self::CompactStream {
         self.poll_shared(worker).boxed()
