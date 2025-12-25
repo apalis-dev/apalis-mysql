@@ -14,21 +14,24 @@ categories = ["asynchronous", "database", "network-programming"]
 publish = true
 
 [features]
-default = ["migrate", "tokio-comp"]
+default = ["migrate", "tokio-comp", "chrono"]
 migrate = ["sqlx/migrate", "sqlx/macros"]
 async-std-comp = ["async-std", "sqlx/runtime-async-std-rustls"]
 async-std-comp-native-tls = ["async-std", "sqlx/runtime-async-std-native-tls"]
 tokio-comp = ["tokio", "sqlx/runtime-tokio-rustls"]
 tokio-comp-native-tls = ["tokio", "sqlx/runtime-tokio-native-tls"]
+chrono = ["dep:chrono", "sqlx/chrono"]
+time = ["dep:time", "sqlx/time"]
 
 [dependencies]
 apalis-codec = "0.1.0-rc.1"
-apalis-core = { version = "1.0.0-rc.1", default-features = false, features = [
-  "sleep",
-] }
-apalis-sql = { version = "1.0.0-rc.1", default-features = false }
+# For development: use local path to apalis with SqlTimestamp trait
+# For release: switch to version or git reference once apalis-sql is updated
+apalis-core = { path = "../apalis/apalis-core", default-features = false, features = ["sleep"] }
+apalis-sql = { path = "../apalis/apalis-sql", default-features = false }
 serde = { version = "1", features = ["derive"] }
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde"], optional = true }
+time = { version = "0.3", features = ["serde"], optional = true }
 pin-project = "1.1.10"
 serde_json = "1"
 futures = "0.3.30"
@@ -42,7 +45,8 @@ log = "0.4"
 [dependencies.sqlx]
 version = "0.8.1"
 default-features = false
-features = ["chrono", "mysql", "json"]
+# Note: chrono/time features are controlled by our feature flags
+features = ["mysql", "json"]
 
 
 [dev-dependencies]
@@ -76,3 +80,8 @@ needless_pass_by_ref_mut = "warn"
 needless_pass_by_value = "warn"
 option_option = "warn"
 redundant_clone = "warn"
+
+[package.metadata.cargo-udeps.ignore]
+# When both chrono and time features are enabled, time takes precedence
+# so chrono appears unused. This is expected behavior for --all-features.
+normal = ["chrono"]
