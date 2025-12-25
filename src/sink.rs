@@ -12,7 +12,7 @@ use futures::{
 use sqlx::MySqlPool;
 use ulid::Ulid;
 
-use crate::{CompactType, MySqlStorage, MySqlTask, config::Config};
+use crate::{CompactType, Config, MySqlStorage, MySqlTask};
 
 type FlushFuture = BoxFuture<'static, Result<(), Arc<sqlx::Error>>>;
 

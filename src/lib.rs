@@ -1,18 +1,14 @@
 #![doc = include_str!("../README.md")]
 //!
-use std::{fmt, marker::PhantomData};
-
+use apalis_codec::json::JsonCodec;
 use apalis_core::{
-    backend::{
-        Backend, BackendExt, TaskStream,
-        codec::{Codec, json::JsonCodec},
-    },
+    backend::{Backend, BackendExt, TaskStream, codec::Codec, queue::Queue},
     features_table,
     layers::Stack,
     task::Task,
     worker::{context::WorkerContext, ext::ack::AcknowledgeLayer},
 };
-pub use apalis_sql::context::SqlContext;
+use apalis_sql::context::SqlContext;
 use futures::{
     FutureExt, Stream, StreamExt, TryStreamExt,
     stream::{self, BoxStream},
@@ -23,6 +19,7 @@ pub use sqlx::{
     mysql::MySqlConnectOptions,
     pool::{PoolConnection, PoolOptions},
 };
+use std::{fmt, marker::PhantomData};
 use ulid::Ulid;
 
 use crate::{
@@ -36,7 +33,6 @@ use crate::{
 };
 
 mod ack;
-mod config;
 /// Fetcher module for retrieving tasks from mysql backend
 pub mod fetcher;
 mod from_row;
@@ -47,9 +43,14 @@ mod shared;
 pub mod sink;
 
 /// Type alias for a task stored in mysql backend
-pub type MySqlTask<Args> = Task<Args, SqlContext, Ulid>;
-pub use config::Config;
+pub type MySqlTask<Args> = Task<Args, MySqlContext, Ulid>;
+pub use apalis_sql::config::Config;
 pub use shared::{SharedMySqlError, SharedMySqlStorage};
+
+pub type MySqlTaskId = apalis_core::task::task_id::TaskId<Ulid>;
+pub type MySqlContext = SqlContext<MySqlPool>;
+
+pub use apalis_sql::ext::TaskBuilderExt;
 
 /// CompactType is the type used for compact serialization in mysql backend
 pub type CompactType = Vec<u8>;
@@ -219,7 +220,7 @@ where
     type Args = Args;
     type IdType = Ulid;
 
-    type Context = SqlContext;
+    type Context = MySqlContext;
 
     type Error = sqlx::Error;
 
@@ -265,7 +266,7 @@ where
 
 impl<Args, Decode: Send + 'static> BackendExt for MySqlStorage<Args, Decode, MySqlFetcher>
 where
-    Self: Backend<Args = Args, IdType = Ulid, Context = SqlContext, Error = sqlx::Error>,
+    Self: Backend<Args = Args, IdType = Ulid, Context = MySqlContext, Error = sqlx::Error>,
     Decode: Codec<Args, Compact = CompactType> + Send + 'static,
     Decode::Error: std::error::Error + Send + Sync + 'static,
     Args: Send + 'static + Unpin,
@@ -273,6 +274,10 @@ where
     type Codec = Decode;
     type Compact = CompactType;
     type CompactStream = TaskStream<MySqlTask<Self::Compact>, sqlx::Error>;
+
+    fn get_queue(&self) -> Queue {
+        self.config.queue().to_owned()
+    }
 
     fn poll_compact(self, worker: &WorkerContext) -> Self::CompactStream {
         self.poll_default(worker).boxed()

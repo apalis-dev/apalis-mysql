@@ -1,7 +1,7 @@
 use apalis_core::backend::{BackendExt, ListQueues, QueueInfo};
 use ulid::Ulid;
 
-use crate::{CompactType, MySqlStorage, SqlContext};
+use crate::{CompactType, MySqlContext, MySqlStorage};
 
 struct QueueInfoRow {
     name: Option<String>,
@@ -23,8 +23,12 @@ impl From<QueueInfoRow> for QueueInfo {
 
 impl<Args, D, F> ListQueues for MySqlStorage<Args, D, F>
 where
-    Self:
-        BackendExt<Context = SqlContext, Compact = CompactType, IdType = Ulid, Error = sqlx::Error>,
+    Self: BackendExt<
+            Context = MySqlContext,
+            Compact = CompactType,
+            IdType = Ulid,
+            Error = sqlx::Error,
+        >,
 {
     fn list_queues(&self) -> impl Future<Output = Result<Vec<QueueInfo>, Self::Error>> + Send {
         let pool = self.pool.clone();

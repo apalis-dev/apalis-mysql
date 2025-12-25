@@ -22,7 +22,7 @@ where
     Self: BackendExt<IdType = Ulid, Codec = Decode, Error = sqlx::Error, Compact = CompactType>,
     Result<O, String>: DeserializeOwned,
 {
-    type ResultStream = BoxStream<'static, Result<TaskResult<O>, Self::Error>>;
+    type ResultStream = BoxStream<'static, Result<TaskResult<O, Ulid>, Self::Error>>;
     fn wait_for(
         &self,
         task_ids: impl IntoIterator<Item = TaskId<Self::IdType>>,
@@ -78,12 +78,12 @@ where
     fn check_status(
         &self,
         task_ids: impl IntoIterator<Item = TaskId<Self::IdType>> + Send,
-    ) -> impl Future<Output = Result<Vec<TaskResult<O>>, Self::Error>> + Send {
+    ) -> impl Future<Output = Result<Vec<TaskResult<O, Ulid>>, Self::Error>> + Send {
         let pool = self.pool.clone();
         let ids: Vec<String> = task_ids.into_iter().map(|id| id.to_string()).collect();
 
         async move {
-            let ids = serde_json::to_string(&ids).unwrap();
+            let ids = serde_json::to_string(&ids).map_err(|e| sqlx::Error::Decode(e.into()))?;
             let rows =
                 sqlx::query_file_as!(ResultRow, "queries/backend/fetch_completed_tasks.sql", ids)
                     .fetch_all(&pool)
@@ -92,17 +92,17 @@ where
             let mut results = Vec::new();
             for row in rows {
                 let task_id = TaskId::from_str(&row.id.unwrap())
-                    .map_err(|_| sqlx::Error::Protocol("Invalid task ID".into()))?;
+                    .map_err(|_| sqlx::Error::Decode("Invalid task ID".into()))?;
 
                 let result: Result<O, String> = serde_json::from_str(&row.result.unwrap())
-                    .map_err(|_| sqlx::Error::Protocol("Failed to decode result".into()))?;
+                    .map_err(|_| sqlx::Error::Decode("Failed to decode result".into()))?;
 
                 results.push(TaskResult::new(
                     task_id,
                     row.status
                         .unwrap()
                         .parse()
-                        .map_err(|_| sqlx::Error::Protocol("Invalid status value".into()))?,
+                        .map_err(|_| sqlx::Error::Decode("Invalid status value".into()))?,
                     result,
                 ));
             }
