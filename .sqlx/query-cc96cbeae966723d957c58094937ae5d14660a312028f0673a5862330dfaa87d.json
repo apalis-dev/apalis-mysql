@@ -52,8 +52,8 @@
         "ordinal": 5,
         "name": "run_at",
         "type_info": {
-          "type": "Datetime",
-          "flags": "MULTIPLE_KEY | BINARY",
+          "type": "Timestamp",
+          "flags": "MULTIPLE_KEY | BINARY | TIMESTAMP",
           "max_size": 19
         }
       },
@@ -70,7 +70,7 @@
         "ordinal": 7,
         "name": "lock_at",
         "type_info": {
-          "type": "Datetime",
+          "type": "Timestamp",
           "flags": "MULTIPLE_KEY | BINARY",
           "max_size": 19
         }
@@ -88,7 +88,7 @@
         "ordinal": 9,
         "name": "done_at",
         "type_info": {
-          "type": "Datetime",
+          "type": "Timestamp",
           "flags": "BINARY",
           "max_size": 19
         }
