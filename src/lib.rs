@@ -50,8 +50,6 @@ pub use shared::{SharedMySqlError, SharedMySqlStorage};
 pub type MySqlTaskId = apalis_core::task::task_id::TaskId<Ulid>;
 pub type MySqlContext = SqlContext<MySqlPool>;
 
-pub use apalis_sql::ext::TaskBuilderExt;
-
 /// CompactType is the type used for compact serialization in mysql backend
 pub type CompactType = Vec<u8>;
 
@@ -276,7 +274,7 @@ where
     type CompactStream = TaskStream<MySqlTask<Self::Compact>, sqlx::Error>;
 
     fn get_queue(&self) -> Queue {
-        self.config.queue().to_owned()
+        Queue::from(self.config.queue().to_string())
     }
 
     fn poll_compact(self, worker: &WorkerContext) -> Self::CompactStream {
@@ -311,7 +309,6 @@ mod tests {
 
     use apalis::prelude::*;
     use apalis_workflow::*;
-    use chrono::Local;
     use serde::{Deserialize, Serialize};
     use sqlx::MySqlPool;
 
@@ -335,8 +332,6 @@ mod tests {
         })
         .take(ITEMS);
         backend.push_stream(&mut items).await.unwrap();
-
-        println!("Starting worker at {}", Local::now());
 
         async fn send_reminder(item: usize, wrk: WorkerContext) -> Result<(), BoxDynError> {
             if ITEMS == item {
