@@ -2,7 +2,7 @@
 //!
 use apalis_codec::json::JsonCodec;
 use apalis_core::{
-    backend::{Backend, BackendExt, TaskStream, codec::Codec},
+    backend::{Backend, BackendExt, TaskStream, codec::Codec, queue::Queue},
     features_table,
     layers::Stack,
     task::Task,
@@ -48,7 +48,7 @@ pub use apalis_sql::config::Config;
 pub use shared::{SharedMySqlError, SharedMySqlStorage};
 
 pub type MySqlTaskId = apalis_core::task::task_id::TaskId<Ulid>;
-pub type MySqlContext = SqlContext;
+pub type MySqlContext = SqlContext<MySqlPool>;
 
 /// CompactType is the type used for compact serialization in mysql backend
 pub type CompactType = Vec<u8>;
@@ -272,6 +272,10 @@ where
     type Codec = Decode;
     type Compact = CompactType;
     type CompactStream = TaskStream<MySqlTask<Self::Compact>, sqlx::Error>;
+
+    fn get_queue(&self) -> Queue {
+        Queue::from(self.config.queue().to_string())
+    }
 
     fn poll_compact(self, worker: &WorkerContext) -> Self::CompactStream {
         self.poll_default(worker).boxed()

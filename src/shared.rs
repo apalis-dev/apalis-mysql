@@ -17,7 +17,7 @@ use crate::{from_row::MySqlTaskRow, sink::MySqlSink};
 
 use apalis_codec::json::JsonCodec;
 use apalis_core::{
-    backend::{Backend, BackendExt, TaskStream, codec::Codec, shared::MakeShared},
+    backend::{Backend, BackendExt, TaskStream, codec::Codec, queue::Queue, shared::MakeShared},
     layers::Stack,
     worker::{context::WorkerContext, ext::ack::AcknowledgeLayer},
 };
@@ -277,6 +277,10 @@ where
     type Codec = Decode;
     type Compact = CompactType;
     type CompactStream = TaskStream<MySqlTask<Self::Compact>, sqlx::Error>;
+
+    fn get_queue(&self) -> Queue {
+        Queue::from(self.config.queue().to_string())
+    }
 
     fn poll_compact(self, worker: &WorkerContext) -> Self::CompactStream {
         self.poll_shared(worker).boxed()

@@ -46,8 +46,14 @@ where
                     .map(|w| RunningWorker {
                         id: w.id,
                         backend: w.storage_name,
-                        started_at: w.started_at.map(|t| t.to_unix_timestamp()).unwrap_or_default() as u64,
-                        last_heartbeat: w.last_seen.map(|t| t.to_unix_timestamp()).unwrap_or_default() as u64,
+                        started_at: w
+                            .started_at
+                            .map(|t| t.to_unix_timestamp())
+                            .unwrap_or_default() as u64,
+                        last_heartbeat: w
+                            .last_seen
+                            .map(|t| t.to_unix_timestamp())
+                            .unwrap_or_default() as u64,
                         layers: w.layers.unwrap_or_default(),
                         queue: w.worker_type,
                     })
@@ -77,8 +83,14 @@ where
                     .map(|w| RunningWorker {
                         id: w.id,
                         backend: w.storage_name,
-                        started_at: w.started_at.map(|t| t.to_unix_timestamp()).unwrap_or_default() as u64,
-                        last_heartbeat: w.last_seen.map(|t| t.to_unix_timestamp()).unwrap_or_default() as u64,
+                        started_at: w
+                            .started_at
+                            .map(|t| t.to_unix_timestamp())
+                            .unwrap_or_default() as u64,
+                        last_heartbeat: w
+                            .last_seen
+                            .map(|t| t.to_unix_timestamp())
+                            .unwrap_or_default() as u64,
                         layers: w.layers.unwrap_or_default(),
                         queue: w.worker_type,
                     })
