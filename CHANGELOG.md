@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- feat: use DateTime abstraction from apalis-sql
+- bump: update apalis deps to rc.2
 - _bump_: introducing mysql v1.0.0-rc.1 (#12)
 
 ## [1.0.0-beta.1] - 2025-12-06

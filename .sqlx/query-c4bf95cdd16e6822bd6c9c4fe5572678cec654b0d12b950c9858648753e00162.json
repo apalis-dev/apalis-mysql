@@ -43,8 +43,8 @@
         "ordinal": 4,
         "name": "last_seen",
         "type_info": {
-          "type": "Datetime",
-          "flags": "MULTIPLE_KEY | BINARY",
+          "type": "Timestamp",
+          "flags": "MULTIPLE_KEY | BINARY | TIMESTAMP | ON_UPDATE_NOW",
           "max_size": 19
         }
       },
@@ -52,7 +52,7 @@
         "ordinal": 5,
         "name": "started_at",
         "type_info": {
-          "type": "Datetime",
+          "type": "Timestamp",
           "flags": "BINARY",
           "max_size": 19
         }

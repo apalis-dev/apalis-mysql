@@ -21,7 +21,7 @@ use apalis_core::{
     layers::Stack,
     worker::{context::WorkerContext, ext::ack::AcknowledgeLayer},
 };
-use apalis_sql::from_row::TaskRow;
+use apalis_sql::{DateTime, DateTimeExt, TaskRow};
 use futures::{
     FutureExt, Stream, StreamExt, TryStreamExt,
     channel::mpsc::{self, Receiver, Sender},
@@ -74,7 +74,7 @@ impl SharedMySqlStorage<JsonCodec<CompactType>> {
                     interval.await;
                     let mut r = registry.lock().await;
                     let job_types: HashSet<String> = r.keys().cloned().collect();
-                    let lock_at = chrono::Utc::now().naive_utc();
+                    let lock_at = DateTime::now();
                     let job_types = serde_json::to_string(&job_types).unwrap();
                     let mut tx = pool.begin().await.unwrap();
                     let rows = sqlx::query_file_as!(
@@ -279,7 +279,7 @@ where
     type CompactStream = TaskStream<MySqlTask<Self::Compact>, sqlx::Error>;
 
     fn get_queue(&self) -> Queue {
-        self.config.queue().to_owned()
+        self.config.queue().clone()
     }
 
     fn poll_compact(self, worker: &WorkerContext) -> Self::CompactStream {
