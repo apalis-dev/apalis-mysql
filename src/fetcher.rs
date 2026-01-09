@@ -11,7 +11,7 @@ use apalis_core::{
     task::Task,
     worker::context::WorkerContext,
 };
-use apalis_sql::{config::Config, from_row::TaskRow};
+use apalis_sql::{DateTime, DateTimeExt, TaskRow, config::Config};
 use futures::{FutureExt, future::BoxFuture, stream::Stream};
 use pin_project::pin_project;
 use sqlx::{MySql, MySqlPool, Pool};
@@ -26,7 +26,7 @@ pub async fn fetch_next(
     worker: WorkerContext,
 ) -> Result<Vec<Task<CompactType, MySqlContext, Ulid>>, sqlx::Error> {
     let mut tx = pool.begin().await?;
-    let lock_at = chrono::Utc::now().naive_utc();
+    let lock_at = DateTime::now();
     let job_type = config.queue().to_string();
     let buffer_size = config.buffer_size() as i32;
     let worker = worker.name().clone();
@@ -85,10 +85,10 @@ enum StreamState {
     Empty,
 }
 
-/// Dispatcher for fetching tasks from a SQLite backend via [MySqlPollFetcher]
+/// Dispatcher for fetching tasks from a MySQL backend via [MySqlPollFetcher]
 #[derive(Clone, Debug)]
 pub struct MySqlFetcher;
-/// Polling-based fetcher for retrieving tasks from a SQLite backend
+/// Polling-based fetcher for retrieving tasks from a MySQL backend
 #[pin_project]
 pub struct MySqlPollFetcher<Compact, Decode> {
     pool: MySqlPool,

@@ -1,17 +1,18 @@
 use apalis_core::backend::{BackendExt, ListWorkers, RunningWorker};
-use chrono::NaiveDateTime;
+use apalis_sql::{DateTime, DateTimeExt};
 use futures::TryFutureExt;
 use ulid::Ulid;
 
 use crate::{CompactType, MySqlContext, MySqlStorage};
 
-struct Worker {
-    id: String,
-    worker_type: String,
-    storage_name: String,
-    layers: Option<String>,
-    last_seen: Option<NaiveDateTime>,
-    started_at: Option<NaiveDateTime>,
+#[derive(Debug)]
+pub struct WorkerRow {
+    pub id: String,
+    pub worker_type: String,
+    pub storage_name: String,
+    pub layers: Option<String>,
+    pub last_seen: Option<DateTime>,
+    pub started_at: Option<DateTime>,
 }
 
 impl<Args: Sync, D, F> ListWorkers for MySqlStorage<Args, D, F>
@@ -27,13 +28,13 @@ where
         &self,
         queue: &str,
     ) -> impl Future<Output = Result<Vec<RunningWorker>, Self::Error>> + Send {
-        let queue = queue.to_owned();
+        let queue = queue.to_string();
         let pool = self.pool.clone();
         let limit = 100;
         let offset = 0;
         async move {
             let workers = sqlx::query_file_as!(
-                Worker,
+                WorkerRow,
                 "queries/backend/list_workers.sql",
                 queue,
                 limit,
@@ -47,12 +48,12 @@ where
                         backend: w.storage_name,
                         started_at: w
                             .started_at
-                            .map(|dt| dt.and_utc().timestamp() as u64)
-                            .unwrap_or_default(),
+                            .map(|t| t.to_unix_timestamp())
+                            .unwrap_or_default() as u64,
                         last_heartbeat: w
                             .last_seen
-                            .map(|dt| dt.and_utc().timestamp() as u64)
-                            .unwrap_or_default(),
+                            .map(|t| t.to_unix_timestamp())
+                            .unwrap_or_default() as u64,
                         layers: w.layers.unwrap_or_default(),
                         queue: w.worker_type,
                     })
@@ -71,7 +72,7 @@ where
         let offset = 0;
         async move {
             let workers = sqlx::query_file_as!(
-                Worker,
+                WorkerRow,
                 "queries/backend/list_all_workers.sql",
                 limit,
                 offset
@@ -84,12 +85,12 @@ where
                         backend: w.storage_name,
                         started_at: w
                             .started_at
-                            .map(|dt| dt.and_utc().timestamp() as u64)
-                            .unwrap_or_default(),
+                            .map(|t| t.to_unix_timestamp())
+                            .unwrap_or_default() as u64,
                         last_heartbeat: w
                             .last_seen
-                            .map(|dt| dt.and_utc().timestamp() as u64)
-                            .unwrap_or_default(),
+                            .map(|t| t.to_unix_timestamp())
+                            .unwrap_or_default() as u64,
                         layers: w.layers.unwrap_or_default(),
                         queue: w.worker_type,
                     })
