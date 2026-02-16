@@ -55,7 +55,7 @@ features = ["mysql", "json"]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 apalis = { version = "1.0.0-rc.3" }
 apalis-workflow = { version = "0.1.0-rc.3" }
-futures-util = "0.3.31"
+futures-util = "0.3.32"
 env_logger = "0.11"
 
 [package.metadata.docs.rs]
