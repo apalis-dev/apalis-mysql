@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## [1.0.0-rc.6] - 2026-03-18
+
+- _bump_: introducing mysql v1.0.0-rc.6
+
 ## [1.0.0-rc.4] - 2026-02-21
 
 - _bump_: introducing mysql v1.0.0-rc.4
