@@ -2,28 +2,32 @@
 
 ## Unreleased
 
+## [1.0.0-rc.7] - 2026-04-11
+
+- _bump_: introducing apalis-mysql v1.0.0-rc.7
+
 ## [1.0.0-rc.6] - 2026-03-18
 
-- _bump_: introducing mysql v1.0.0-rc.6
+- _bump_: introducing apalis-mysql v1.0.0-rc.6
 
 ## [1.0.0-rc.4] - 2026-02-21
 
-- _bump_: introducing mysql v1.0.0-rc.4
+- _bump_: introducing apalis-mysql v1.0.0-rc.4
 
 ## [1.0.0-rc.3] - 2026-02-02
 
-- _bump_: introducing mysql v1.0.0-rc.3
+- _bump_: introducing apalis-mysql v1.0.0-rc.3
 
 ## [1.0.0-rc.2] - 2026-01-10
 
-- _bump_: introducing mysql v1.0.0-rc.2
+- _bump_: introducing apalis-mysql v1.0.0-rc.2
 - feat: use DateTime abstraction from apalis-sql
 - bump: update apalis deps to rc.2
-- _bump_: introducing mysql v1.0.0-rc.1 (#12)
+- _bump_: introducing apalis-mysql v1.0.0-rc.1 (#12)
 
 ## [1.0.0-beta.1] - 2025-12-06
 
-- _chore_: introducing mysql v1 (#6)
+- _chore_: introducing apalis-mysql v1 (#6)
 
 ## [0.7.0] - 2025-03-17
 
