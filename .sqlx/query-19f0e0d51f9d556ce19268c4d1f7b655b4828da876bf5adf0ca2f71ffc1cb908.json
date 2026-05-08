@@ -119,6 +119,15 @@
           "flags": "BLOB | BINARY",
           "max_size": 4294967295
         }
+      },
+      {
+        "ordinal": 13,
+        "name": "idempotency_key",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "max_size": 144
+        }
       }
     ],
     "parameters": {
@@ -137,6 +146,7 @@
       true,
       false,
       false,
+      true,
       true
     ]
   },
