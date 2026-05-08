@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- _feat_: idempotency for tasks (#56)
+
 ## [1.0.0-rc.7] - 2026-04-11
 
 - _bump_: introducing apalis-mysql v1.0.0-rc.7

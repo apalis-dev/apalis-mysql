@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "INSERT INTO\n    jobs(\n        job,\n        id,\n        job_type,\n        status,\n        attempts,\n        max_attempts,\n        run_at,\n        priority,\n        metadata,\n        idempotency_key\n    )\nVALUES\n    (\n        ?,\n        ?,\n        ?,\n        'Pending',\n        0,\n        ?,\n        ?,\n        ?,\n        ?,\n        ?\n    )\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "c049cf1078a393b011f7ed808472dcc3c3dbda40cb27ff74bd5ab8f263980c73"
+}

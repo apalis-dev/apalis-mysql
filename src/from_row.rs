@@ -14,6 +14,7 @@ pub(crate) struct MySqlTaskRow {
     pub(crate) lock_by: Option<String>,
     pub(crate) done_at: Option<DateTime>,
     pub(crate) priority: Option<i32>,
+    pub(crate) idempotency_key: Option<String>,
     pub(crate) metadata: Option<serde_json::Value>,
 }
 
@@ -45,6 +46,7 @@ impl TryInto<TaskRow> for MySqlTaskRow {
             lock_by: self.lock_by,
             done_at: self.done_at,
             priority: self.priority.map(|v| v as usize),
+            idempotency_key: self.idempotency_key,
             metadata: self.metadata,
         })
     }

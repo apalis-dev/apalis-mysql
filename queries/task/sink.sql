@@ -8,7 +8,8 @@ INSERT INTO
         max_attempts,
         run_at,
         priority,
-        metadata
+        metadata,
+        idempotency_key
     )
 VALUES
     (
@@ -17,6 +18,7 @@ VALUES
         ?,
         'Pending',
         0,
+        ?,
         ?,
         ?,
         ?,
