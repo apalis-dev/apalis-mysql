@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [1.0.0-rc.8] - 2026-05-08
+
 - _feat_: idempotency for tasks (#56)
 
 ## [1.0.0-rc.7] - 2026-04-11
