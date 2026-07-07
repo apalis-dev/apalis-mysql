@@ -512,4 +512,55 @@ mod tests {
             .build(workflow);
         worker.run().await.unwrap();
     }
+
+    #[tokio::test]
+    async fn test_wait_for_completion() {
+        use apalis_core::{
+            backend::WaitForCompletion,
+            task::{builder::TaskBuilder, task_id::TaskId},
+        };
+        use futures::StreamExt;
+        use ulid::Ulid;
+
+        let pool = MySqlPool::connect(&std::env::var("DATABASE_URL").unwrap())
+            .await
+            .unwrap();
+        MySqlStorage::setup(&pool).await.unwrap();
+
+        // Separate backend for pushing and waiting
+        let mut push_backend = MySqlStorage::new(&pool);
+
+        // Generate a known task ID
+        let task_id = TaskId::new(Ulid::new());
+
+        // Push a task with the known ID
+        let task = TaskBuilder::new(42u32)
+            .with_task_id(task_id.clone())
+            .build();
+        push_backend.push_task(task).await.unwrap();
+
+        // Separate backend for the worker
+        let worker_backend = MySqlStorage::new(&pool);
+        let worker = WorkerBuilder::new("wait-for-test-worker")
+            .backend(worker_backend)
+            .build(|item: u32, wrk: WorkerContext| async move {
+                assert_eq!(item, 42);
+                wrk.stop().unwrap();
+                Ok::<String, BoxDynError>("completed".into())
+            });
+
+        // Run worker and wait_for concurrently
+        let worker_handle = tokio::spawn(worker.run());
+
+        // Wait for the task to complete
+        let mut stream = push_backend.wait_for([task_id.clone()]);
+        let result = stream.next().await.unwrap().unwrap();
+
+        assert_eq!(result.task_id, task_id);
+        assert_eq!(result.status, apalis_core::task::status::Status::Done);
+        assert_eq!(result.result, Ok("completed".to_string()));
+
+        // Ensure worker finishes cleanly
+        worker_handle.await.unwrap().unwrap();
+    }
 }

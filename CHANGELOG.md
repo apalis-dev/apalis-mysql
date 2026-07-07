@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- _fix_: MariaDB compatibility for `wait_for` and `check_status` by replacing `CAST(? AS JSON)` with `JSON_EXTRACT(?, '$')` (#27)
+
 ## [1.0.0-rc.8] - 2026-05-08
 
 - _feat_: idempotency for tasks (#56)
