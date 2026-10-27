@@ -9,7 +9,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "NOT_NULL | PRIMARY_KEY | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 255,
           "max_size": 144
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "id"
+          }
         }
       },
       {
@@ -18,7 +25,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 255,
           "max_size": 800
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "job_type"
+          }
         }
       },
       {
@@ -27,7 +41,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "NOT_NULL | MULTIPLE_KEY",
+          "collation": 255,
           "max_size": 80
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "status"
+          }
         }
       },
       {
@@ -36,7 +57,14 @@
         "type_info": {
           "type": "Long",
           "flags": "NOT_NULL",
+          "collation": 63,
           "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "attempts"
+          }
         }
       },
       {
@@ -45,7 +73,14 @@
         "type_info": {
           "type": "Long",
           "flags": "NOT_NULL",
+          "collation": 63,
           "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "max_attempts"
+          }
         }
       },
       {
@@ -54,7 +89,14 @@
         "type_info": {
           "type": "Timestamp",
           "flags": "MULTIPLE_KEY | BINARY | TIMESTAMP",
+          "collation": 63,
           "max_size": 19
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "run_at"
+          }
         }
       },
       {
@@ -63,7 +105,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "",
+          "collation": 255,
           "max_size": 4000
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "last_result"
+          }
         }
       },
       {
@@ -72,7 +121,14 @@
         "type_info": {
           "type": "Timestamp",
           "flags": "MULTIPLE_KEY | BINARY",
+          "collation": 63,
           "max_size": 19
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "lock_at"
+          }
         }
       },
       {
@@ -81,7 +137,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "MULTIPLE_KEY",
+          "collation": 255,
           "max_size": 144
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "lock_by"
+          }
         }
       },
       {
@@ -90,7 +153,14 @@
         "type_info": {
           "type": "Timestamp",
           "flags": "BINARY",
+          "collation": 63,
           "max_size": 19
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "done_at"
+          }
         }
       },
       {
@@ -99,7 +169,14 @@
         "type_info": {
           "type": "Long",
           "flags": "NOT_NULL",
+          "collation": 63,
           "max_size": 11
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "priority"
+          }
         }
       },
       {
@@ -108,7 +185,14 @@
         "type_info": {
           "type": "Blob",
           "flags": "NOT_NULL | BLOB | BINARY | NO_DEFAULT_VALUE",
+          "collation": 63,
           "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "job"
+          }
         }
       },
       {
@@ -117,7 +201,14 @@
         "type_info": {
           "type": "Json",
           "flags": "BLOB | BINARY",
+          "collation": 63,
           "max_size": 4294967295
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "metadata"
+          }
         }
       },
       {
@@ -126,7 +217,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "",
+          "collation": 255,
           "max_size": 144
+        },
+        "origin": {
+          "Table": {
+            "table": "test.jobs",
+            "name": "idempotency_key"
+          }
         }
       }
     ],

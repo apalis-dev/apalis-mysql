@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use apalis::prelude::*;
 use apalis_mysql::MySqlStorage;
-use apalis_workflow::*;
+use apalis_workflow::{SteppedFlow, sink::WorkflowSink};
 use sqlx::MySqlPool;
 
 #[tokio::main]
@@ -27,7 +27,7 @@ async fn main() {
         assert_eq!(task, 142);
         worker.stop().unwrap();
     }
-    let workflow = Workflow::new("test_workflow")
+    let workflow = SteppedFlow::new("test_workflow")
         .and_then(task1)
         .delay_for(Duration::from_secs(1))
         .and_then(task2)

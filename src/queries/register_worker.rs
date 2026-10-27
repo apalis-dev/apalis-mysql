@@ -1,19 +1,22 @@
 use apalis_core::worker::context::WorkerContext;
-use sqlx::MySqlPool;
+use sqlx::Executor;
 
-use crate::Config;
+use crate::{config::Config, error::Error};
 
 /// Register a new worker in the database
-pub async fn register_worker(
-    pool: MySqlPool,
-    config: Config,
-    worker: WorkerContext,
+pub async fn register_worker<E>(
+    executor: &mut E,
+    config: &Config,
+    worker: &WorkerContext,
     storage_type: &str,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), Error>
+where
+    for<'e> &'e mut E: Executor<'e, Database = sqlx::MySql>,
+{
     let worker_id = worker.name().to_owned();
-    let queue = config.queue().to_string();
+    let queue = config.queue.as_ref();
     let layers = worker.get_service().to_owned();
-    let keep_alive = config.keep_alive().as_secs() as i64;
+    let keep_alive = config.heartbeat_interval.as_secs();
     let res = sqlx::query_file!(
         "queries/backend/register_worker.sql",
         worker_id,
@@ -23,13 +26,10 @@ pub async fn register_worker(
         worker_id,
         keep_alive,
     )
-    .execute(&pool)
+    .execute(&mut *executor)
     .await?;
     if res.rows_affected() == 0 {
-        return Err(sqlx::Error::Io(std::io::Error::new(
-            std::io::ErrorKind::AlreadyExists,
-            "WORKER_ALREADY_EXISTS",
-        )));
+        return Err(Error::WorkerAlreadyExists(worker.name().to_owned()));
     }
     Ok(())
 }

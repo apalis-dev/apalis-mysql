@@ -1,147 +1,266 @@
+//! Shared MySQL storage for multiple workers.
+//!
+//! This module provides [`MySqlStorageFactory`], a factory for creating
+//! multiple [`MySqlStorage`] instances that share a single MySQL connection
+//! pool and task-fetching loop.
+//!
+//! ## Why shared storage?
+//!
+//! A MySQL backend can be used by multiple workers, but having every worker
+//! independently poll the database results in unnecessary database queries.
+//!
+//! [`MySqlStorageFactory`] addresses this by maintaining a single shared
+//! polling task for all storage instances created by the factory. The poller
+//! fetches available tasks for all registered queues in a batch and routes
+//! each task to the [`SharedFetcher`] belonging to the corresponding storage
+//! instance.
+//!
+//! The resulting architecture is roughly:
+//!
+//! ```text
+//!                         MySQL
+//!                            │
+//!                      poll interval
+//!                            │
+//!                            ▼
+//!                  ┌───────────────────┐
+//!                  │  Shared poller    │
+//!                  │                   │
+//!                  │ fetches tasks for │
+//!                  │ all registered    │
+//!                  │ queues in batches │
+//!                  └─────────┬─────────┘
+//!                            │
+//!              ┌─────────────┼─────────────┐
+//!              │             │             │
+//!              ▼             ▼             ▼
+//!          queue A       queue B       queue C
+//!              │             │             │
+//!              ▼             ▼             ▼
+//!          Worker A      Worker B      Worker C
+//! ```
+//!
+//! ## Creating a factory
+//!
+//! The factory owns the underlying [`MySqlPool`] and can create multiple
+//! backends from it:
+//!
+//! ```ignore
+//! # use apalis_mysql::shared::MySqlStorageFactory;
+//! # use apalis_core::backend::factory::BackendFactory;
+//! let mut factory = MySqlStorageFactory::new("mysql://localhost/apalis");
+//!
+//! let first = factory.create().unwrap();
+//! let second = factory.create().unwrap();
+//! ```
+//!
+//! Each backend has its own queue registration and receiver, while the
+//! database connection pool and polling task are shared.
+//!
+//! ## Queue registration
+//!
+//! Each backend created by the factory is associated with a queue derived from
+//! its [`Config`].
+//!
+//! A queue may only be registered once with a factory.
+//!
+//! Attempting to create another backend for an already-registered queue returns
+//! [`SharedMySqlError::NamespaceExists`].
+//!
+//! ## Task dispatch
+//!
+//! [`SharedFetcher`] implements [`Stream`] and receives tasks from the shared
+//! polling loop through an asynchronous channel.
+//!
+//! The resulting backend is an [`Interleave`] combining the normal
+//! [`MySqlStorage`] implementation with [`SharedFetcher`].
+//!
+//! [`Config`]: crate::Config
+//! [`Interleave`]: apalis_core::backend::ext::interleave::Interleave
+//! [`MySqlPool`]: sqlx::MySqlPool
+//! [`MySqlStorage`]: crate::MySqlStorage
+//! [`MySqlStorageFactory`]: crate::shared::MySqlStorageFactory
+//! [`SharedFetcher`]: crate::shared::SharedFetcher
+//! [`SharedMySqlError`]: crate::shared::SharedMySqlError
+//! [`Stream`]: futures::Stream
 use std::{
     collections::{HashMap, HashSet},
-    marker::PhantomData,
     pin::Pin,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     task::{Context, Poll},
     time::Duration,
 };
 
-use crate::{
-    CompactType, Config, MySqlContext, MySqlStorage, MySqlTask,
-    ack::{LockTaskLayer, MySqlAck},
-    fetcher::MySqlPollFetcher,
-    initial_heartbeat, keep_alive,
-};
-use crate::{from_row::MySqlTaskRow, sink::MySqlSink};
-
-use apalis_codec::json::JsonCodec;
-use apalis_core::{
-    backend::{Backend, BackendExt, TaskStream, codec::Codec, queue::Queue, shared::MakeShared},
-    layers::Stack,
-    worker::{context::WorkerContext, ext::ack::AcknowledgeLayer},
-};
-use apalis_sql::{DateTime, DateTimeExt, TaskRow};
+use apalis_core::backend::{BackendConfig, ext::interleave::Interleave, factory::BackendFactory};
 use futures::{
-    FutureExt, Stream, StreamExt, TryStreamExt,
+    FutureExt, SinkExt, Stream, StreamExt,
     channel::mpsc::{self, Receiver, Sender},
     future::{BoxFuture, Shared},
     lock::Mutex,
-    stream::{self, BoxStream, select},
 };
-use sqlx::{MySql, MySqlPool, pool::PoolOptions};
-use ulid::Ulid;
+use serde::{Serialize, de::DeserializeOwned};
+use sqlx::{MySql, MySqlPool, pool::PoolOptions, types::chrono::Utc};
 
-/// Shared MySql storage backend that can be used across multiple workers
+use crate::{Config, MySqlStorage, MySqlTask, error::Error, from_row::MySqlTaskRow};
+
+/// A [`MySqlStorage`] interleaving with [`SharedFetcher`]
+pub type SharedMySqlStorage<Args> = Interleave<MySqlStorage<Args>, SharedFetcher>;
+
+type Registry = Arc<Mutex<HashMap<String, Sender<Result<MySqlTask, Error>>>>>;
+
+/// The default interval at which the shared poller looks for new tasks.
+const DEFAULT_POLL_INTERVAL: Duration = Duration::from_millis(100);
+
+/// Shared MySQL storage backend that can be used across multiple workers
 #[derive(Clone, Debug)]
-pub struct SharedMySqlStorage<Decode> {
+pub struct MySqlStorageFactory {
     pool: MySqlPool,
-    registry: Arc<Mutex<HashMap<String, Sender<MySqlTask<CompactType>>>>>,
+    registry: Registry,
     drive: Shared<BoxFuture<'static, ()>>,
-    _marker: PhantomData<Decode>,
+    poll_interval: Arc<AtomicU64>,
 }
 
-impl<Decode> SharedMySqlStorage<Decode> {
-    /// Get a reference to the underlying MySql connection pool
+impl MySqlStorageFactory {
+    /// Get a reference to the underlying MySQL connection pool
     #[must_use]
     pub fn pool(&self) -> &MySqlPool {
         &self.pool
     }
-}
 
-impl SharedMySqlStorage<JsonCodec<CompactType>> {
-    /// Create a new shared MySql storage backend with the given database URL
+    /// Create a new shared MySQL storage backend with the given database URL
     #[must_use]
-    pub fn new(url: &str) -> Self {
-        Self::new_with_codec(url)
+    pub fn new(url: &str) -> MySqlStorageFactory {
+        Self::new_with_pool_options(url, PoolOptions::<MySql>::new())
+            .with_poll_interval(DEFAULT_POLL_INTERVAL)
     }
-    /// Create a new shared MySql storage backend with the given database URL and codec
-    #[must_use]
-    pub fn new_with_codec<Codec>(url: &str) -> SharedMySqlStorage<Codec> {
-        let pool = PoolOptions::<MySql>::new()
-            .connect_lazy(url)
-            .expect("Failed to create MySql pool");
 
-        let registry: Arc<Mutex<HashMap<String, Sender<MySqlTask<CompactType>>>>> =
-            Arc::new(Mutex::new(HashMap::default()));
-        let drive = {
-            let pool = pool.clone();
-            let registry = registry.clone();
-            let fut = async move {
+    /// Set the interval at which the shared poller looks for new tasks.
+    ///
+    /// MySQL has no equivalent of the SQLite update hook, so the shared
+    /// poller is driven by a timer instead of by insertions. The new
+    /// interval takes effect on the next poll.
+    #[must_use]
+    pub fn with_poll_interval(self, interval: Duration) -> MySqlStorageFactory {
+        self.poll_interval
+            .store(interval.as_millis() as u64, Ordering::Relaxed);
+        self
+    }
+
+    /// Create a new shared MySQL storage backend with the given database URL and pool options
+    #[must_use]
+    pub fn new_with_pool_options(url: &str, options: PoolOptions<MySql>) -> MySqlStorageFactory {
+        let pool = options
+            .connect_lazy(url)
+            .expect("Failed to create MySQL pool");
+        let registry: Registry = Registry::default();
+
+        let p = pool.clone();
+        let instances = registry.clone();
+        let poll_interval = Arc::new(AtomicU64::new(DEFAULT_POLL_INTERVAL.as_millis() as u64));
+        let poller_interval = poll_interval.clone();
+        MySqlStorageFactory {
+            pool,
+            drive: async move {
                 loop {
-                    // TODO: @geofmureithi - Use poll strategy to drive fetching
-                    let interval = apalis_core::timer::Delay::new(Duration::from_millis(100));
+                    let interval = Duration::from_millis(poller_interval.load(Ordering::Relaxed));
+                    let interval = apalis_core::timer::Delay::new(interval);
                     interval.await;
-                    let mut r = registry.lock().await;
+                    let mut r = instances.lock().await;
+                    if r.is_empty() {
+                        continue;
+                    }
                     let job_types: HashSet<String> = r.keys().cloned().collect();
-                    let lock_at = DateTime::now();
-                    let job_types = serde_json::to_string(&job_types).unwrap();
-                    let mut tx = pool.begin().await.unwrap();
-                    let rows = sqlx::query_file_as!(
+                    let job_types = match serde_json::to_string(&job_types) {
+                        Ok(job_types) => job_types,
+                        Err(e) => {
+                            log::error!("Error encoding job types: {e}");
+                            continue;
+                        }
+                    };
+                    let mut tx = match p.begin().await {
+                        Ok(tx) => tx,
+                        Err(e) => {
+                            log::error!("Error fetching tasks: {e}");
+                            continue;
+                        }
+                    };
+                    let rows = match sqlx::query_file_as!(
                         MySqlTaskRow,
                         "queries/backend/fetch_next_shared.sql",
                         job_types,
-                        lock_at,
+                        Utc::now(),
                         10_i32
                     )
-                    .fetch_all(&pool)
+                    .fetch_all(&mut *tx)
                     .await
-                    .unwrap();
+                    {
+                        Ok(rows) => rows,
+                        Err(e) => {
+                            log::error!("Error fetching tasks: {e}");
+                            continue;
+                        }
+                    };
 
                     if rows.is_empty() {
-                        tx.commit().await.unwrap();
+                        let _ = tx.rollback().await;
                         continue;
                     }
 
-                    let ids: HashSet<_> = rows.iter().filter_map(|r| r.id.clone()).collect();
-
-                    let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-                    let update_query = format!(
-                        "UPDATE jobs SET status = 'Queued', lock_at = ? WHERE id IN ({})",
-                        placeholders
-                    );
-
-                    let mut query = sqlx::query(&update_query).bind(lock_at);
-
-                    for id in &ids {
-                        query = query.bind(id);
+                    let ids = rows
+                        .iter()
+                        .filter_map(|row| row.id.clone())
+                        .collect::<Vec<_>>();
+                    let ids = match serde_json::to_string(&ids) {
+                        Ok(ids) => ids,
+                        Err(e) => {
+                            log::error!("Error encoding task ids: {e}");
+                            continue;
+                        }
+                    };
+                    if let Err(e) = sqlx::query_file!("queries/backend/claim_tasks_shared.sql", ids)
+                        .execute(&mut *tx)
+                        .await
+                    {
+                        log::error!("Error claiming tasks: {e}");
+                        continue;
+                    }
+                    if let Err(e) = tx.commit().await {
+                        log::error!("Error committing tasks: {e}");
+                        continue;
                     }
 
-                    query.execute(&mut *tx).await.unwrap();
-
-                    // Convert rows to tasks
-                    let tasks: Vec<MySqlTask<CompactType>> = rows
-                        .into_iter()
-                        .map(|r| {
-                            let row: TaskRow = r.try_into()?;
-                            row.try_into_task_compact()
-                                .map_err(|e| sqlx::Error::Protocol(e.to_string()))
-                        })
-                        .collect::<Result<Vec<_>, _>>()
-                        .unwrap();
-
-                    tx.commit().await.unwrap();
-                    for task in tasks {
-                        if let Some(sender) =
-                            r.get_mut(task.parts.ctx.queue().as_ref().unwrap().as_str())
+                    for row in rows {
+                        let task: MySqlTask = match row.into_task(None) {
+                            Ok(task) => task,
+                            Err(e) => {
+                                log::error!("Error converting task: {e}");
+                                continue;
+                            }
+                        };
+                        let queue = task
+                            .queue()
+                            .map(|queue| queue.to_string())
+                            .unwrap_or_default();
+                        if let Some(tx) = r.get_mut(&queue)
+                            && let Err(e) = tx.send(Ok(task)).await
                         {
-                            let _ = sender.try_send(task);
+                            log::error!("Error pushing task: {e:?}");
                         }
                     }
                 }
-            };
-            fut.boxed().shared()
-        };
-        SharedMySqlStorage {
-            pool,
-            drive,
+            }
+            .boxed()
+            .shared(),
             registry,
-            _marker: PhantomData,
+            poll_interval,
         }
     }
 }
 
-/// Errors that can occur when creating a shared MySql storage backend
+/// Errors that can occur when creating a shared MySQL storage backend
 #[derive(Debug, thiserror::Error)]
 pub enum SharedMySqlError {
     /// Namespace already exists in the registry
@@ -152,215 +271,59 @@ pub enum SharedMySqlError {
     RegistryLocked,
 }
 
-impl<Args, Decode: Codec<Args, Compact = CompactType>> MakeShared<Args>
-    for SharedMySqlStorage<Decode>
+impl<Args> BackendFactory<Args> for MySqlStorageFactory
+where
+    Args: Send + Sync + Serialize + DeserializeOwned + 'static,
 {
-    type Backend = MySqlStorage<Args, Decode, SharedFetcher<CompactType>>;
-    type Config = Config;
-    type MakeError = SharedMySqlError;
-    fn make_shared(&mut self) -> Result<Self::Backend, Self::MakeError>
+    type Backend = SharedMySqlStorage<Args>;
+    type Error = SharedMySqlError;
+
+    fn create(&mut self) -> Result<Self::Backend, Self::Error>
     where
-        Self::Config: Default,
+        <Self::Backend as BackendConfig>::Config: Default,
     {
-        Self::make_shared_with_config(self, Config::new(std::any::type_name::<Args>()))
+        let config = Config::default().queue(std::any::type_name::<Args>());
+        self.create_with_config(config)
     }
-    fn make_shared_with_config(
+
+    fn create_with_config(
         &mut self,
-        config: Self::Config,
-    ) -> Result<Self::Backend, Self::MakeError> {
-        let (tx, rx) = mpsc::channel(config.buffer_size());
+        config: <Self::Backend as BackendConfig>::Config,
+    ) -> Result<Self::Backend, Self::Error> {
+        let (tx, rx) = mpsc::channel(config.batch_size);
         let mut r = self
             .registry
             .try_lock()
             .ok_or(SharedMySqlError::RegistryLocked)?;
-        if r.insert(config.queue().to_string(), tx).is_some() {
-            return Err(SharedMySqlError::NamespaceExists(
-                config.queue().to_string(),
-            ));
+        if r.insert(config.queue.to_string(), tx).is_some() {
+            return Err(SharedMySqlError::NamespaceExists(config.queue.to_string()));
         }
-        let sink = MySqlSink::new(&self.pool, &config);
-        Ok(MySqlStorage {
-            config,
-            fetcher: SharedFetcher {
+        Ok(Interleave::new(
+            MySqlStorage::new(&self.pool).with_config(config),
+            SharedFetcher {
                 poller: self.drive.clone(),
-                receiver: Arc::new(std::sync::Mutex::new(rx)),
+                receiver: Arc::new(Mutex::new(rx)),
             },
-            pool: self.pool.clone(),
-            sink,
-            job_type: PhantomData,
-            codec: PhantomData,
-        })
+        ))
     }
 }
 
+/// A fetcher that uses a channel to receive jobs from a shared polling point
 #[derive(Clone, Debug)]
-pub struct SharedFetcher<Compact> {
+pub struct SharedFetcher {
     poller: Shared<BoxFuture<'static, ()>>,
-    receiver: Arc<std::sync::Mutex<Receiver<MySqlTask<Compact>>>>,
+    receiver: Arc<Mutex<Receiver<Result<MySqlTask, Error>>>>,
 }
 
-impl<Compact> Stream for SharedFetcher<Compact> {
-    type Item = MySqlTask<Compact>;
+impl Stream for SharedFetcher {
+    type Item = Result<MySqlTask, Error>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
         // Keep the poller alive by polling it, but ignoring the output
         let _ = this.poller.poll_unpin(cx);
 
-        // Delegate actual items to receiver
-        this.receiver.lock().unwrap().poll_next_unpin(cx)
-    }
-}
-
-impl<Args, Decode> Backend for MySqlStorage<Args, Decode, SharedFetcher<CompactType>>
-where
-    Args: Send + 'static + Unpin + Sync,
-    Decode: Codec<Args, Compact = CompactType> + 'static + Unpin + Send + Sync,
-    Decode::Error: std::error::Error + Send + Sync + 'static,
-{
-    type Args = Args;
-
-    type IdType = Ulid;
-
-    type Error = sqlx::Error;
-
-    type Stream = TaskStream<MySqlTask<Args>, sqlx::Error>;
-
-    type Beat = BoxStream<'static, Result<(), sqlx::Error>>;
-
-    type Context = MySqlContext;
-
-    type Layer = Stack<AcknowledgeLayer<MySqlAck>, LockTaskLayer>;
-
-    fn heartbeat(&self, worker: &WorkerContext) -> Self::Beat {
-        let keep_alive_interval = *self.config.keep_alive();
-        let pool = self.pool.clone();
-        let worker = worker.clone();
-        let config = self.config.clone();
-
-        stream::unfold((), move |()| async move {
-            apalis_core::timer::sleep(keep_alive_interval).await;
-            Some(((), ()))
-        })
-        .then(move |_| keep_alive(pool.clone(), config.clone(), worker.clone()))
-        .boxed()
-    }
-
-    fn middleware(&self) -> Self::Layer {
-        let lock = LockTaskLayer::new(self.pool.clone());
-        let ack = AcknowledgeLayer::new(MySqlAck::new(self.pool.clone()));
-        Stack::new(ack, lock)
-    }
-
-    fn poll(self, worker: &WorkerContext) -> Self::Stream {
-        self.poll_shared(worker)
-            .map(|a| match a {
-                Ok(Some(task)) => Ok(Some(
-                    task.try_map(|t| Decode::decode(&t))
-                        .map_err(|e| sqlx::Error::Decode(e.into()))?,
-                )),
-                Ok(None) => Ok(None),
-                Err(e) => Err(e),
-            })
-            .boxed()
-    }
-}
-
-impl<Args, Decode: Send + 'static> BackendExt
-    for MySqlStorage<Args, Decode, SharedFetcher<CompactType>>
-where
-    Self: Backend<Args = Args, IdType = Ulid, Context = MySqlContext, Error = sqlx::Error>,
-    Decode: Codec<Args, Compact = CompactType> + Send + 'static,
-    Decode::Error: std::error::Error + Send + Sync + 'static,
-    Args: Send + 'static + Unpin,
-{
-    type Codec = Decode;
-    type Compact = CompactType;
-    type CompactStream = TaskStream<MySqlTask<Self::Compact>, sqlx::Error>;
-
-    fn get_queue(&self) -> Queue {
-        self.config.queue().clone()
-    }
-
-    fn poll_compact(self, worker: &WorkerContext) -> Self::CompactStream {
-        self.poll_shared(worker).boxed()
-    }
-}
-
-impl<Args, Decode: Send + 'static> MySqlStorage<Args, Decode, SharedFetcher<CompactType>> {
-    fn poll_shared(
-        self,
-        worker: &WorkerContext,
-    ) -> impl Stream<Item = Result<Option<MySqlTask<CompactType>>, sqlx::Error>> + 'static {
-        let pool = self.pool.clone();
-        let worker = worker.clone();
-        // Initial registration heartbeat
-        // This ensures that the worker is registered before fetching any tasks
-        // This also ensures that the worker is marked as alive in case it crashes
-        // before fetching any tasks
-        // Subsequent heartbeats are handled in the heartbeat stream
-        let init = initial_heartbeat(
-            pool,
-            self.config.clone(),
-            worker.clone(),
-            "SharedMySqlStorage",
-        );
-        let starter = stream::once(init)
-            .map_ok(|_| None) // Noop after initial heartbeat
-            .boxed();
-        let lazy_fetcher = self.fetcher.map(|s| Ok(Some(s))).boxed();
-
-        let eager_fetcher = StreamExt::boxed(MySqlPollFetcher::<CompactType, Decode>::new(
-            &self.pool,
-            &self.config,
-            &worker,
-        ));
-        starter.chain(select(lazy_fetcher, eager_fetcher)).boxed()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use apalis_core::{
-        backend::TaskSink, error::BoxDynError, task::task_id::TaskId,
-        worker::builder::WorkerBuilder,
-    };
-
-    use super::*;
-
-    #[tokio::test]
-    async fn basic_worker() {
-        let mut store = SharedMySqlStorage::new(&std::env::var("DATABASE_URL").unwrap());
-        MySqlStorage::setup(store.pool()).await.unwrap();
-
-        let mut map_store = store.make_shared().unwrap();
-
-        let mut int_store = store.make_shared().unwrap();
-
-        map_store
-            .push(HashMap::<String, i32>::from([("value".to_string(), 42)]))
-            .await
-            .unwrap();
-        int_store.push(99).await.unwrap();
-
-        async fn send_reminder<T, I>(
-            _: T,
-            _task_id: TaskId<I>,
-            wrk: WorkerContext,
-        ) -> Result<(), BoxDynError> {
-            tokio::time::sleep(Duration::from_secs(2)).await;
-            wrk.stop().unwrap();
-            Ok(())
-        }
-
-        let int_worker = WorkerBuilder::new("rango-tango-2")
-            .backend(int_store)
-            .build(send_reminder);
-        let map_worker = WorkerBuilder::new("rango-tango-1")
-            .backend(map_store)
-            .build(send_reminder);
-        tokio::try_join!(int_worker.run(), map_worker.run()).unwrap();
+        let mut guard = futures::ready!(this.receiver.lock().poll_unpin(cx));
+        guard.poll_next_unpin(cx)
     }
 }

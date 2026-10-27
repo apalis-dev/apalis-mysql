@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE\n    jobs\nINNER JOIN (\n    SELECT\n        JSON_UNQUOTE(JSON_EXTRACT(value, '$.task_id')) AS task_id,\n        CAST(JSON_UNQUOTE(JSON_EXTRACT(value, '$.attempt')) AS SIGNED) AS attempt,\n        JSON_EXTRACT(value, '$.result') AS result,\n        JSON_UNQUOTE(JSON_EXTRACT(value, '$.status')) AS status\n    FROM\n        JSON_TABLE(\n            JSON_EXTRACT(?, '$'), '$[*]'\n            COLUMNS (value JSON PATH '$')\n        ) AS jt\n) AS j ON j.task_id = jobs.id\nSET\n    jobs.status = j.status,\n    jobs.attempts = j.attempt,\n    jobs.last_result = j.result,\n    jobs.done_at = NOW()\nWHERE\n    jobs.lock_by = ?;\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "aa90c3307ea462f285f1c04c45c89808092a826a68cceffc4645f0f8e5324296"
+}

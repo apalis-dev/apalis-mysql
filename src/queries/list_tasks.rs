@@ -1,31 +1,21 @@
 use apalis_core::{
-    backend::{BackendExt, Filter, ListAllTasks, ListTasks, codec::Codec},
-    task::{Task, status::Status},
+    backend::{Backend, Filter, ListAllTasks, ListTasks},
+    task::status::Status,
 };
-use apalis_sql::from_row::{FromRowError, TaskRow};
-use ulid::Ulid;
 
-use crate::{CompactType, MySqlContext, MySqlStorage, MySqlTask, from_row::MySqlTaskRow};
+use crate::{MySqlStorage, MySqlTask, error::Error, from_row::MySqlTaskRow};
 
-impl<Args, D, F> ListTasks<Args> for MySqlStorage<Args, D, F>
+impl<Args> ListTasks for MySqlStorage<Args>
 where
-    Self: BackendExt<
-            Context = MySqlContext,
-            Compact = CompactType,
-            IdType = Ulid,
-            Error = sqlx::Error,
-        >,
-    D: Codec<Args, Compact = CompactType>,
-    D::Error: std::error::Error + Send + Sync + 'static,
+    Self: Backend<Error = Error>,
     Args: 'static,
 {
     fn list_tasks(
         &self,
         filter: &Filter,
-    ) -> impl Future<Output = Result<Vec<MySqlTask<Args>>, Self::Error>> + Send {
-        let queue = self.config().queue().to_string();
-
-        let pool = self.pool.clone();
+    ) -> impl Future<Output = Result<Vec<MySqlTask>, Self::Error>> + Send {
+        let queue = self.persistence.config.queue.as_ref();
+        let pool = self.persistence.pool.clone();
         let limit = filter.limit() as i32;
         let offset = filter.offset() as i32;
         let status = filter
@@ -45,42 +35,27 @@ where
             .fetch_all(&pool)
             .await?
             .into_iter()
-            .map(|r| {
-                let row: TaskRow = r
-                    .try_into()
-                    .map_err(|e: sqlx::Error| FromRowError::DecodeError(e.into()))?;
-                row.try_into_task_compact().and_then(|t| {
-                    t.try_map(|a| D::decode(&a).map_err(|e| FromRowError::DecodeError(e.into())))
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| sqlx::Error::Decode(e.into()))?;
+            .map(|r| r.try_into())
+            .collect::<Result<Vec<_>, _>>()?;
             Ok(tasks)
         }
     }
 }
 
-impl<Args, D, F> ListAllTasks for MySqlStorage<Args, D, F>
+impl<Args> ListAllTasks for MySqlStorage<Args>
 where
-    Self: BackendExt<
-            Context = MySqlContext,
-            Compact = CompactType,
-            IdType = Ulid,
-            Error = sqlx::Error,
-        >,
+    Self: Backend<Error = Error>,
 {
     fn list_all_tasks(
         &self,
         filter: &Filter,
-    ) -> impl Future<
-        Output = Result<Vec<Task<Self::Compact, Self::Context, Self::IdType>>, Self::Error>,
-    > + Send {
+    ) -> impl Future<Output = Result<Vec<MySqlTask>, Self::Error>> + Send {
         let status = filter
             .status
             .as_ref()
             .map(|s| s.to_string())
             .unwrap_or(Status::Pending.to_string());
-        let pool = self.pool.clone();
+        let pool = self.persistence.pool.clone();
         let limit = filter.limit() as i32;
         let offset = filter.offset() as i32;
         async move {
@@ -94,11 +69,7 @@ where
             .fetch_all(&pool)
             .await?
             .into_iter()
-            .map(|r| {
-                let row: TaskRow = r.try_into()?;
-                row.try_into_task_compact()
-                    .map_err(|e| sqlx::Error::Protocol(e.to_string()))
-            })
+            .map(|r| r.try_into())
             .collect::<Result<Vec<_>, _>>()?;
             Ok(tasks)
         }

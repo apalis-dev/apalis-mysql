@@ -9,7 +9,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "NOT_NULL | PRIMARY_KEY | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 255,
           "max_size": 144
+        },
+        "origin": {
+          "Table": {
+            "table": "test.workers",
+            "name": "id"
+          }
         }
       },
       {
@@ -18,7 +25,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
+          "collation": 255,
           "max_size": 800
+        },
+        "origin": {
+          "Table": {
+            "table": "test.workers",
+            "name": "worker_type"
+          }
         }
       },
       {
@@ -27,7 +41,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "collation": 255,
           "max_size": 800
+        },
+        "origin": {
+          "Table": {
+            "table": "test.workers",
+            "name": "storage_name"
+          }
         }
       },
       {
@@ -36,7 +57,14 @@
         "type_info": {
           "type": "VarString",
           "flags": "NOT_NULL",
+          "collation": 255,
           "max_size": 4000
+        },
+        "origin": {
+          "Table": {
+            "table": "test.workers",
+            "name": "layers"
+          }
         }
       },
       {
@@ -45,7 +73,14 @@
         "type_info": {
           "type": "Timestamp",
           "flags": "MULTIPLE_KEY | BINARY | TIMESTAMP | ON_UPDATE_NOW",
+          "collation": 63,
           "max_size": 19
+        },
+        "origin": {
+          "Table": {
+            "table": "test.workers",
+            "name": "last_seen"
+          }
         }
       },
       {
@@ -54,7 +89,14 @@
         "type_info": {
           "type": "Timestamp",
           "flags": "BINARY",
+          "collation": 63,
           "max_size": 19
+        },
+        "origin": {
+          "Table": {
+            "table": "test.workers",
+            "name": "started_at"
+          }
         }
       }
     ],
