@@ -1,6 +1,6 @@
 use apalis::prelude::*;
 use apalis_mysql::MySqlStorage;
-use apalis_workflow::*;
+use apalis_workflow::{GraphFlow, sink::WorkflowSink};
 use sqlx::MySqlPool;
 
 async fn get_name(user_id: u32) -> Result<String, BoxDynError> {
@@ -31,14 +31,14 @@ async fn main() {
         .unwrap();
     MySqlStorage::setup(&pool).await.unwrap();
     let mut backend = MySqlStorage::new(&pool);
-    backend.push_start(vec![42, 43, 44]).await.unwrap();
+    backend.start_fan_out(vec![42, 43, 44]).await.unwrap();
 
-    let dag_flow = DagFlow::new("user-etl-workflow");
-    let get_name = dag_flow.node(get_name);
-    let get_age = dag_flow.node(get_age);
-    let get_address = dag_flow.node(get_address);
+    let dag_flow = GraphFlow::new("user-etl-workflow");
+    let get_name = dag_flow.add_task(get_name);
+    let get_age = dag_flow.add_task(get_age);
+    let get_address = dag_flow.add_task(get_address);
     dag_flow
-        .node(collector)
+        .add_task(collector)
         .depends_on((&get_name, &get_age, &get_address)); // Order and types matters here
 
     dag_flow.validate().unwrap();

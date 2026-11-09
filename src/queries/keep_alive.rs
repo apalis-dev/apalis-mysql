@@ -1,53 +1,24 @@
 use apalis_core::worker::context::WorkerContext;
-use futures::{FutureExt, Stream, stream};
-use sqlx::MySqlPool;
+use sqlx::Executor;
 
-use crate::{
-    Config,
-    queries::{reenqueue_orphaned::reenqueue_orphaned, register_worker::register_worker},
-};
+use crate::{config::Config, error::Error};
 
 /// Send a keep-alive signal to the database to indicate that the worker is still active
-pub async fn keep_alive(
-    pool: MySqlPool,
-    config: Config,
-    worker: WorkerContext,
-) -> Result<(), sqlx::Error> {
+pub async fn keep_alive<E>(
+    executor: &mut E,
+    config: &Config,
+    worker: &WorkerContext,
+) -> Result<(), Error>
+where
+    for<'e> &'e mut E: Executor<'e, Database = sqlx::MySql>,
+{
     let worker = worker.name().to_owned();
-    let queue = config.queue().to_string();
+    let queue = config.queue.as_ref();
     let res = sqlx::query_file!("queries/backend/keep_alive.sql", worker, queue)
-        .execute(&pool)
+        .execute(executor)
         .await?;
     if res.rows_affected() == 0 {
-        return Err(sqlx::Error::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "WORKER_DOES_NOT_EXIST",
-        )));
+        return Err(Error::WorkerOutOfSync);
     }
     Ok(())
-}
-
-/// Perform the initial heartbeat and registration of the worker
-pub async fn initial_heartbeat(
-    pool: MySqlPool,
-    config: Config,
-    worker: WorkerContext,
-    storage_type: &str,
-) -> Result<(), sqlx::Error> {
-    reenqueue_orphaned(pool.clone(), &config).await?;
-    register_worker(pool, config, worker, storage_type).await?;
-    Ok(())
-}
-
-/// Create a stream that sends keep-alive signals at regular intervals
-pub fn keep_alive_stream(
-    pool: MySqlPool,
-    config: Config,
-    worker: WorkerContext,
-) -> impl Stream<Item = Result<(), sqlx::Error>> + Send {
-    stream::unfold((), move |_| {
-        let register = keep_alive(pool.clone(), config.clone(), worker.clone());
-        let interval = apalis_core::timer::Delay::new(*config.keep_alive());
-        interval.then(move |_| register.map(|res| Some((res, ()))))
-    })
 }

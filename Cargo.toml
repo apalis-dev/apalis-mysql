@@ -1,6 +1,6 @@
 [package]
 name = "apalis-mysql"
-version = "1.0.0-rc.8"
+version = "1.0.0-rc.9"
 authors = ["Njuguna Mureithi <mureithinjuguna@gmail.com>"]
 edition = "2024"
 repository = "https://github.com/apalis-dev/apalis-mysql"
@@ -14,48 +14,53 @@ categories = ["asynchronous", "database", "network-programming"]
 publish = true
 
 [features]
-default = ["migrate", "tokio-comp", "chrono"]
+default = ["migrate", "tokio-comp"]
+## Enable migrations and macros for sqlx
 migrate = ["sqlx/migrate", "sqlx/macros"]
-async-std-comp = ["async-std", "sqlx/runtime-async-std-rustls"]
-async-std-comp-native-tls = ["async-std", "sqlx/runtime-async-std-native-tls"]
-tokio-comp = ["tokio", "sqlx/runtime-tokio-rustls"]
-tokio-comp-native-tls = ["tokio", "sqlx/runtime-tokio-native-tls"]
-chrono = ["apalis-sql/chrono", "sqlx/chrono"]
-time = ["apalis-sql/time", "sqlx/time"]
+## Enable the async-std runtime for sqlx
+async-std-comp = ["async-std", "sqlx/runtime-async-std", "sqlx/tls-rustls"]
+## Enable the async-std runtime for sqlx with native-tls
+async-std-comp-native-tls = [
+  "async-std",
+  "sqlx/runtime-async-std",
+  "sqlx/tls-native-tls",
+]
+## Enable the tokio runtime for sqlx
+tokio-comp = ["tokio", "sqlx/runtime-tokio", "sqlx/tls-rustls"]
+## Enable the tokio runtime for sqlx with native-tls
+tokio-comp-native-tls = ["tokio", "sqlx/runtime-tokio", "sqlx/tls-native-tls"]
+
 
 [dependencies]
-apalis-core = { version = "1.0.0-rc.9", default-features = false, features = [
+apalis-core = { version = "1.0.0", default-features = false, features = [
   "sleep",
+  "ulid",
 ] }
-apalis-sql = { version = "1.0.0-rc.9", default-features = false }
-apalis-codec = { version = "0.1.0-rc.9", features = [
-  "json",
-] }
+apalis-codec = { version = "1.0.0", features = ["json"] }
 serde = { version = "1", features = ["derive"], default-features = false }
-pin-project = "1.1.10"
+pin-project = "1.1.13"
 serde_json = "1"
-futures = "0.3.30"
+futures = "0.3.34"
 thiserror = "2"
 tokio = { version = "1", features = [
   "rt",
   "net",
 ], optional = true, default-features = false }
-async-std = { version = "1.13.0", optional = true, default-features = false }
-ulid = { version = "1", features = ["serde"] }
+async-std = { version = "1.13.2", optional = true, default-features = false }
+ulid = { version = "3", features = ["serde"] }
 log = "0.4"
 
 
 [dependencies.sqlx]
-version = "0.8.1"
+version = "0.9"
 default-features = false
-features = ["mysql", "json"]
-
+features = ["mysql", "json", "chrono", "sqlx-toml"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-apalis = { version = "1.0.0-rc.9" }
-apalis-workflow = { version = "0.1.0-rc.9" }
-futures-util = "0.3.31"
+apalis = { version = "1.0.0" }
+apalis-workflow = { version = "1.0.0" }
+futures-util = "0.3.34"
 env_logger = "0.11"
 
 [package.metadata.docs.rs]

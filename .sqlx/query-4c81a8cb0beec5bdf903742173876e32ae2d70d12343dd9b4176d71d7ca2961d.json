@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE\n    jobs\nINNER JOIN workers ON jobs.lock_by = workers.id\nSET\n    jobs.status = 'Pending',\n    jobs.done_at = NULL,\n    jobs.lock_by = NULL,\n    jobs.lock_at = NULL,\n    jobs.attempts = jobs.attempts + 1,\n    jobs.last_result = '{\"Err\": \"Re-enqueued due to worker shutdown\"}'\nWHERE\n    jobs.status = 'Queued'\n    AND workers.worker_type = ?\n    AND workers.id = ?\n    AND jobs.id IN (\n        SELECT\n            jt.value\n        FROM\n            JSON_TABLE(\n                JSON_EXTRACT(?, '$'), '$[*]'\n                COLUMNS (value VARCHAR(36) PATH '$')\n            ) AS jt\n    );\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "4c81a8cb0beec5bdf903742173876e32ae2d70d12343dd9b4176d71d7ca2961d"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "UPDATE\n    jobs\nSET\n    status = 'Running',\n    lock_at = NOW(),\n    lock_by = ?\nWHERE\n    (\n        status = 'Pending'\n        OR status = 'Queued'\n        OR (\n            status = 'Failed'\n            AND attempts < max_attempts\n        )\n    )\n    AND run_at <= NOW()\n    AND id IN (\n        SELECT\n            jt.value\n        FROM\n            JSON_TABLE(\n                JSON_EXTRACT(?, '$'), '$[*]'\n                COLUMNS (value VARCHAR(36) PATH '$')\n            ) AS jt\n    );\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "d1cf379569e4a760e207deebcf3b8c1c79715c4051dbcfb403bff995a269c293"
+}
