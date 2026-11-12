@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
 
 - chore: add auto-release and auto-changelog scripts ([#107](https://github.com/apalis-dev/apalis-mysql/pull/107))
 - _breaking_: port the backend to the `apalis-core 1.0.0` backend traits: ([#101](https://github.com/apalis-dev/apalis-mysql/pull/101))
