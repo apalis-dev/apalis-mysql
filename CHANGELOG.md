@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- chore: add auto-release and auto-changelog scripts
+- chore: add auto-release and auto-changelog scripts.
 - _breaking_: port the backend to the `apalis-core 1.0.0` backend traits:
   - `MySqlStorage<T, C, F>` is now `MySqlStorage<Args>`, built on `Persisted<MySqlPersistence>`. The codec is fixed to `JsonCodec` and `with_codec` is gone.
   - `SharedMySqlStorage` is replaced by `MySqlStorageFactory`, which implements `BackendFactory` and shares one connection pool and one polling loop between the backends it creates (`create()` / `create_with_config()`).
