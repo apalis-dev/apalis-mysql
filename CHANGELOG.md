@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.0.0](https://github.com/apalis-dev/apalis-mysql/releases/tag/v1.0.0)
+
 - chore: add auto-release and auto-changelog scripts ([#107](https://github.com/apalis-dev/apalis-mysql/pull/107))
 - _breaking_: port the backend to the `apalis-core 1.0.0` backend traits: ([#101](https://github.com/apalis-dev/apalis-mysql/pull/101))
 - _fix_: `reenqueue_abandoned` now returns `Error::ReenqueueMismatch` instead of logging a warning and committing a partial re-enqueue during graceful shutdown, matching the sqlite and postgres backends. ([#107](https://github.com/apalis-dev/apalis-mysql/pull/107))
