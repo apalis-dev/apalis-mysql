@@ -32,11 +32,11 @@ tokio-comp-native-tls = ["tokio", "sqlx/runtime-tokio", "sqlx/tls-native-tls"]
 
 
 [dependencies]
-apalis-core = { version = "1.0.0", default-features = false, features = [
+apalis-core = { version = "1.1.1", default-features = false, features = [
   "sleep",
   "ulid",
 ] }
-apalis-codec = { version = "1.0.0", features = ["json"] }
+apalis-codec = { version = "1.1.1", features = ["json"] }
 serde = { version = "1", features = ["derive"], default-features = false }
 pin-project = "1.1.13"
 serde_json = "1"
@@ -58,8 +58,8 @@ features = ["mysql", "json", "chrono", "sqlx-toml"]
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-apalis = { version = "1.0.0" }
-apalis-workflow = { version = "1.0.0" }
+apalis = { version = "1.1.1" }
+apalis-workflow = { version = "1.1.1" }
 futures-util = "0.3.34"
 env_logger = "0.11"
 

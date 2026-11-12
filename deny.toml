@@ -3,10 +3,6 @@ exclude-unpublished = true
 
 [advisories]
 unmaintained = "none"
-ignore = [
-    # TODO: @geofmureithi Review later
-    { id = "RUSTSEC-2023-0071", reason = "No patch is yet available" },
-]
 
 [licenses]
 confidence-threshold = 0.8
@@ -38,9 +34,16 @@ skip-tree = [
     { name = "getrandom" },
     { name = "hashbrown" },
     { name = "rand" },
-    { name = "rand_chacha" },
     { name = "rand_core" },
     { name = "redox_syscall" },
+    { name = "syn" },
+    { name = "sha2" },
+    { name = "digest" },
+    "crypto-common",
+    "block-buffer",
+
+
+
 ]
 
 [sources]
