@@ -6,7 +6,6 @@ use apalis_core::task::{
     status::Status,
     task_id::{TaskId, TaskIdError::Decode},
 };
-use sqlx::types::chrono::{DateTime, Utc};
 use ulid::Ulid;
 
 use crate::{MySqlTask, error::Error, timestamp::Timestamp};
@@ -19,12 +18,12 @@ pub(crate) struct MySqlTaskRow {
     pub status: Option<String>,
     pub attempts: Option<i32>,
     pub max_attempts: Option<i32>,
-    pub run_at: Option<DateTime<Utc>>,
+    pub run_at: Option<Timestamp>,
     #[allow(unused)]
     pub last_result: Option<String>,
-    pub lock_at: Option<DateTime<Utc>>,
+    pub lock_at: Option<Timestamp>,
     pub lock_by: Option<String>,
-    pub done_at: Option<DateTime<Utc>>,
+    pub done_at: Option<Timestamp>,
     pub priority: Option<i32>,
     pub idempotency_key: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -67,14 +66,12 @@ impl MySqlTaskRow {
         )
         .max_attempts(self.max_attempts.map(|v| v as usize).unwrap_or(25))
         .run_at_timestamp(
-            Timestamp::from(
-                self.run_at
-                    .ok_or(sqlx::Error::ColumnNotFound("run_at".to_owned()))?,
-            )
-            .0,
+            self.run_at
+                .ok_or(sqlx::Error::ColumnNotFound("run_at".to_owned()))?
+                .0,
         )
-        .lock_at(self.lock_at.map(Timestamp::from).map(|ts| ts.0))
-        .done_at(self.done_at.map(Timestamp::from).map(|ts| ts.0))
+        .lock_at(self.lock_at.map(|ts| ts.0))
+        .done_at(self.done_at.map(|ts| ts.0))
         .lock_by(self.lock_by)
         .priority(self.priority.map(|v| v as usize).unwrap_or_default())
         .with_metadata(

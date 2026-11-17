@@ -102,9 +102,11 @@ use futures::{
     lock::Mutex,
 };
 use serde::{Serialize, de::DeserializeOwned};
-use sqlx::{MySql, MySqlPool, pool::PoolOptions, types::chrono::Utc};
+use sqlx::{MySql, MySqlPool, pool::PoolOptions};
 
-use crate::{Config, MySqlStorage, MySqlTask, error::Error, from_row::MySqlTaskRow};
+use crate::{
+    Config, MySqlStorage, MySqlTask, error::Error, from_row::MySqlTaskRow, timestamp::Timestamp,
+};
 
 /// A [`MySqlStorage`] interleaving with [`SharedFetcher`]
 pub type SharedMySqlStorage<Args> = Interleave<MySqlStorage<Args>, SharedFetcher>;
@@ -191,7 +193,7 @@ impl MySqlStorageFactory {
                         MySqlTaskRow,
                         "queries/backend/fetch_next_shared.sql",
                         job_types,
-                        Utc::now(),
+                        Timestamp::now(),
                         10_i32
                     )
                     .fetch_all(&mut *tx)

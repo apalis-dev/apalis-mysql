@@ -5,13 +5,10 @@ use std::{
 };
 
 use futures::Sink;
-use sqlx::{
-    Executor,
-    types::chrono::{DateTime, Utc},
-};
+use sqlx::Executor;
 use ulid::Ulid;
 
-use crate::{MySqlStorage, MySqlTask, error::Error};
+use crate::{MySqlStorage, MySqlTask, error::Error, timestamp::Timestamp};
 
 /// Push a batch of tasks to the database
 pub async fn push_tasks<E>(executor: &mut E, queue: &str, tasks: &[MySqlTask]) -> Result<(), Error>
@@ -30,7 +27,7 @@ where
                 .expect("System time is before Unix epoch")
                 .as_secs()
         });
-        let run_at = DateTime::from_timestamp(run_at as i64, 0).unwrap_or_else(Utc::now);
+        let run_at = Timestamp(run_at);
         let max_attempts = task.max_attempts().unwrap_or(25) as i32;
         let priority = task.priority().unwrap_or_default() as i32;
         let args = &task.args;

@@ -14,7 +14,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.workers",
+            "table": "apalis_dev.workers",
             "name": "id"
           }
         }
@@ -30,7 +30,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.workers",
+            "table": "apalis_dev.workers",
             "name": "worker_type"
           }
         }
@@ -46,7 +46,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.workers",
+            "table": "apalis_dev.workers",
             "name": "storage_name"
           }
         }
@@ -62,7 +62,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.workers",
+            "table": "apalis_dev.workers",
             "name": "layers"
           }
         }
@@ -78,7 +78,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.workers",
+            "table": "apalis_dev.workers",
             "name": "last_seen"
           }
         }
@@ -94,7 +94,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.workers",
+            "table": "apalis_dev.workers",
             "name": "started_at"
           }
         }

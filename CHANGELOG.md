@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- fix: remove time and chrono dependencies for sqlx ([#114](https://github.com/apalis-dev/apalis-mysql/pull/114))
+
 ## [1.0.0](https://github.com/apalis-dev/apalis-mysql/releases/tag/v1.0.0)
 
 - chore: add auto-release and auto-changelog scripts ([#107](https://github.com/apalis-dev/apalis-mysql/pull/107))

@@ -1,8 +1,6 @@
 use apalis_core::backend::{Backend, ListWorkers, RunningWorker};
 use futures::TryFutureExt;
 
-use sqlx::types::chrono::{DateTime, Utc};
-
 use crate::{MySqlStorage, error::Error, timestamp::Timestamp};
 
 struct Worker {
@@ -10,8 +8,8 @@ struct Worker {
     worker_type: String,
     storage_name: String,
     layers: Option<String>,
-    last_seen: Option<DateTime<Utc>>,
-    started_at: Option<DateTime<Utc>>,
+    last_seen: Option<Timestamp>,
+    started_at: Option<Timestamp>,
 }
 
 impl<Args: Sync> ListWorkers for MySqlStorage<Args>
@@ -37,16 +35,8 @@ where
                     .map(|w| RunningWorker {
                         id: w.id,
                         backend: w.storage_name,
-                        started_at: w
-                            .started_at
-                            .map(Timestamp::from)
-                            .map(|t| t.0)
-                            .unwrap_or_default(),
-                        last_heartbeat: w
-                            .last_seen
-                            .map(Timestamp::from)
-                            .map(|t| t.0)
-                            .unwrap_or_default(),
+                        started_at: w.started_at.map(|t| t.0).unwrap_or_default(),
+                        last_heartbeat: w.last_seen.map(|t| t.0).unwrap_or_default(),
                         layers: w.layers.unwrap_or_default(),
                         queue: w.worker_type,
                     })
@@ -76,16 +66,8 @@ where
                     .map(|w| RunningWorker {
                         id: w.id,
                         backend: w.storage_name,
-                        started_at: w
-                            .started_at
-                            .map(Timestamp::from)
-                            .map(|t| t.0)
-                            .unwrap_or_default(),
-                        last_heartbeat: w
-                            .last_seen
-                            .map(Timestamp::from)
-                            .map(|t| t.0)
-                            .unwrap_or_default(),
+                        started_at: w.started_at.map(|t| t.0).unwrap_or_default(),
+                        last_heartbeat: w.last_seen.map(|t| t.0).unwrap_or_default(),
                         layers: w.layers.unwrap_or_default(),
                         queue: w.worker_type,
                     })

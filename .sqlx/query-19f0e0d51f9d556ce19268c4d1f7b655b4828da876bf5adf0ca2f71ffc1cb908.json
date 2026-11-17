@@ -14,7 +14,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "id"
           }
         }
@@ -30,7 +30,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "job_type"
           }
         }
@@ -46,7 +46,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "status"
           }
         }
@@ -62,7 +62,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "attempts"
           }
         }
@@ -78,7 +78,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "max_attempts"
           }
         }
@@ -94,7 +94,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "run_at"
           }
         }
@@ -110,7 +110,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "last_result"
           }
         }
@@ -126,7 +126,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "lock_at"
           }
         }
@@ -142,7 +142,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "lock_by"
           }
         }
@@ -158,7 +158,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "done_at"
           }
         }
@@ -174,7 +174,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "priority"
           }
         }
@@ -190,7 +190,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "job"
           }
         }
@@ -206,7 +206,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "metadata"
           }
         }
@@ -222,7 +222,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "idempotency_key"
           }
         }
