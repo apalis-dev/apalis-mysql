@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- fix: remove time/chrono dependencies for sqlx ([#114](https://github.com/apalis-dev/apalis-mysql/pull/114))
+- fix: remove time and chrono dependencies for sqlx ([#114](https://github.com/apalis-dev/apalis-mysql/pull/114))
 
 ## [1.0.0](https://github.com/apalis-dev/apalis-mysql/releases/tag/v1.0.0)
 
