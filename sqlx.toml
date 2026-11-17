@@ -1,0 +1,3 @@
+[macros.type-overrides]
+'TIMESTAMP' = "crate::timestamp::Timestamp"
+'DATETIME' = "crate::timestamp::Timestamp"

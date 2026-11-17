@@ -1,7 +1,9 @@
 use apalis_core::{task::status::Status, worker::context::WorkerContext};
-use sqlx::{Executor, types::chrono::Utc};
+use sqlx::Executor;
 
-use crate::{MySqlTask, config::Config, error::Error, from_row::MySqlTaskRow};
+use crate::{
+    MySqlTask, config::Config, error::Error, from_row::MySqlTaskRow, timestamp::Timestamp,
+};
 
 /// Fetch the next batch of tasks from the mysql backend
 pub async fn fetch_next<E>(
@@ -14,7 +16,7 @@ where
 {
     let job_type = config.queue.as_ref();
     let buffer_size = config.batch_size as i32;
-    let run_at = Utc::now();
+    let run_at = Timestamp::now();
 
     let rows = sqlx::query_file_as!(
         MySqlTaskRow,

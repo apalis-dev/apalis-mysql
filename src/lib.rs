@@ -305,7 +305,8 @@ mod tests {
 
         let pool = pool().await;
         let mut mysql = MySqlStorage::new(&pool)
-            .with_config(Config::default().queue("workflow-queue").batch_size(10));
+            .with_config(Config::default().queue("workflow-queue").batch_size(10))
+            .poll_with_interval(Duration::from_secs(1));
 
         mysql.push_start(100usize).await.unwrap();
 

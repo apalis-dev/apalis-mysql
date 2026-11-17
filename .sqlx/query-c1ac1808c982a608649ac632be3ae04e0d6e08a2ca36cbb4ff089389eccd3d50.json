@@ -14,7 +14,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "id"
           }
         }
@@ -30,7 +30,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "status"
           }
         }
@@ -46,7 +46,7 @@
         },
         "origin": {
           "Table": {
-            "table": "test.jobs",
+            "table": "apalis_dev.jobs",
             "name": "last_result"
           }
         }
