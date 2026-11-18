@@ -105,10 +105,6 @@ version = "2.13.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.block-buffer]]
-version = "0.10.4"
-criteria = "safe-to-deploy"
-
-[[exemptions.block-buffer]]
 version = "0.12.1"
 criteria = "safe-to-deploy"
 
@@ -125,7 +121,7 @@ version = "1.5.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.bytes]]
-version = "1.12.1"
+version = "1.12.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.cc]]
@@ -161,10 +157,6 @@ version = "0.8.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.cpufeatures]]
-version = "0.2.17"
-criteria = "safe-to-deploy"
-
-[[exemptions.cpufeatures]]
 version = "0.3.1"
 criteria = "safe-to-deploy"
 
@@ -185,10 +177,6 @@ version = "0.8.23"
 criteria = "safe-to-deploy"
 
 [[exemptions.crypto-common]]
-version = "0.1.6"
-criteria = "safe-to-deploy"
-
-[[exemptions.crypto-common]]
 version = "0.2.2"
 criteria = "safe-to-deploy"
 
@@ -198,10 +186,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.dashmap]]
 version = "6.2.1"
-criteria = "safe-to-deploy"
-
-[[exemptions.digest]]
-version = "0.10.7"
 criteria = "safe-to-deploy"
 
 [[exemptions.digest]]
@@ -468,8 +452,12 @@ criteria = "safe-to-deploy"
 version = "0.2.191"
 criteria = "safe-to-deploy"
 
+[[exemptions.libredox]]
+version = "0.1.25"
+criteria = "safe-to-deploy"
+
 [[exemptions.libsqlite3-sys]]
-version = "0.37.0"
+version = "0.40.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.linux-raw-sys]]
@@ -506,6 +494,14 @@ criteria = "safe-to-deploy"
 
 [[exemptions.num-traits]]
 version = "0.2.19"
+criteria = "safe-to-deploy"
+
+[[exemptions.objc2-core-foundation]]
+version = "0.3.2"
+criteria = "safe-to-deploy"
+
+[[exemptions.objc2-system-configuration]]
+version = "0.3.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.once_cell]]
@@ -617,15 +613,15 @@ version = "0.5.18"
 criteria = "safe-to-deploy"
 
 [[exemptions.regex]]
-version = "1.13.1"
+version = "1.13.2"
 criteria = "safe-to-run"
 
 [[exemptions.regex-automata]]
-version = "0.4.18"
+version = "0.4.19"
 criteria = "safe-to-run"
 
 [[exemptions.regex-syntax]]
-version = "0.8.11"
+version = "0.8.12"
 criteria = "safe-to-run"
 
 [[exemptions.ring]]
@@ -697,10 +693,6 @@ version = "1.0.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.sha2]]
-version = "0.10.9"
-criteria = "safe-to-deploy"
-
-[[exemptions.sha2]]
 version = "0.11.1"
 criteria = "safe-to-deploy"
 
@@ -713,7 +705,7 @@ version = "0.4.12"
 criteria = "safe-to-deploy"
 
 [[exemptions.smallvec]]
-version = "1.16.5"
+version = "1.16.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.socket2]]
@@ -725,31 +717,31 @@ version = "0.9.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.sqlx]]
-version = "0.9.0"
+version = "0.9.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.sqlx-core]]
-version = "0.9.0"
+version = "0.9.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.sqlx-macros]]
-version = "0.9.0"
+version = "0.9.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.sqlx-macros-core]]
-version = "0.9.0"
+version = "0.9.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.sqlx-mysql]]
-version = "0.9.0"
+version = "0.9.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.sqlx-postgres]]
-version = "0.9.0"
+version = "0.9.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.sqlx-sqlite]]
-version = "0.9.0"
+version = "0.9.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.stable_deref_trait]]
@@ -940,6 +932,10 @@ criteria = "safe-to-deploy"
 version = "0.2.130"
 criteria = "safe-to-deploy"
 
+[[exemptions.web-sys]]
+version = "0.3.107"
+criteria = "safe-to-deploy"
+
 [[exemptions.web-time]]
 version = "1.1.0"
 criteria = "safe-to-deploy"
@@ -1025,7 +1021,7 @@ version = "0.1.8"
 criteria = "safe-to-deploy"
 
 [[exemptions.zeroize]]
-version = "1.9.1"
+version = "1.9.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.zerotrie]]
