@@ -456,6 +456,7 @@ mod tests {
         assert_eq!(stat("ACTIVE_JOBS"), "1");
         assert_eq!(stat("DONE_JOBS"), "0");
         assert!(info.workers.is_empty());
+        assert_eq!(info.activity, vec![1]);
     }
 
     #[tokio::test]
