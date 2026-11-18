@@ -54,7 +54,7 @@ WITH queue_stats AS (
             CAST(COUNT(*) AS CHAR)
         FROM jobs
         WHERE status = 'Running'
-          AND run_at < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))
+          AND run_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)
         GROUP BY job_type
         UNION ALL
         SELECT
@@ -73,7 +73,7 @@ WITH queue_stats AS (
             'JOBS_PAST_HOUR',
             CAST(COUNT(*) AS CHAR)
         FROM jobs
-        WHERE run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))
+        WHERE run_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
         GROUP BY job_type
         UNION ALL
         SELECT
@@ -83,7 +83,7 @@ WITH queue_stats AS (
             'JOBS_TODAY',
             CAST(COUNT(*) AS CHAR)
         FROM jobs
-        WHERE DATE(FROM_UNIXTIME(run_at)) = DATE(NOW())
+        WHERE DATE(run_at) = DATE(NOW())
         GROUP BY job_type
         UNION ALL
         SELECT
@@ -93,7 +93,7 @@ WITH queue_stats AS (
             'KILLED_JOBS_TODAY',
             CAST(SUM(IF(status = 'Killed', 1, 0)) AS CHAR)
         FROM jobs
-        WHERE DATE(FROM_UNIXTIME(run_at)) = DATE(NOW())
+        WHERE DATE(run_at) = DATE(NOW())
         GROUP BY job_type
         UNION ALL
         SELECT
@@ -103,7 +103,7 @@ WITH queue_stats AS (
             'AVG_JOBS_PER_MINUTE_PAST_HOUR',
             CAST(ROUND(COUNT(*) / 60.0, 2) AS CHAR)
         FROM jobs
-        WHERE run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))
+        WHERE run_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
         GROUP BY job_type
         UNION ALL
         SELECT
@@ -147,7 +147,7 @@ WITH queue_stats AS (
             5,
             'Decimal',
             'AVG_JOB_DURATION_MINS',
-            CAST(ROUND(AVG((done_at - run_at) / 60.0), 2) AS CHAR)
+            CAST(ROUND(AVG(TIMESTAMPDIFF(SECOND, run_at, done_at) / 60.0), 2) AS CHAR)
         FROM jobs
         WHERE status IN ('Done', 'Failed', 'Killed')
           AND done_at IS NOT NULL
@@ -158,7 +158,7 @@ WITH queue_stats AS (
             5,
             'Decimal',
             'LONGEST_RUNNING_JOB_MINS',
-            CAST(ROUND(MAX(IF(status = 'Running', (UNIX_TIMESTAMP(NOW()) - run_at) / 60.0, 0)), 2) AS CHAR)
+            CAST(ROUND(MAX(IF(status = 'Running', TIMESTAMPDIFF(SECOND, run_at, NOW()) / 60.0, 0)), 2) AS CHAR)
         FROM jobs
         GROUP BY job_type
         UNION ALL
@@ -169,7 +169,7 @@ WITH queue_stats AS (
             'JOBS_PAST_7_DAYS',
             CAST(COUNT(*) AS CHAR)
         FROM jobs
-        WHERE run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))
+        WHERE run_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
         GROUP BY job_type
         UNION ALL
         SELECT
@@ -177,7 +177,7 @@ WITH queue_stats AS (
             8,
             'Timestamp',
             'MOST_RECENT_JOB',
-            CAST(MAX(run_at) AS CHAR)
+            CAST(UNIX_TIMESTAMP(MAX(run_at)) AS CHAR)
         FROM jobs
         GROUP BY job_type
     ) t
@@ -186,11 +186,11 @@ WITH queue_stats AS (
 daily_counts AS (
     SELECT
         job_type,
-        DATE(FROM_UNIXTIME(run_at)) AS day,
+        DATE(run_at) AS day,
         COUNT(*) AS daily_count
     FROM jobs
-    WHERE run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))
-    GROUP BY job_type, DATE(FROM_UNIXTIME(run_at))
+    WHERE run_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    GROUP BY job_type, DATE(run_at)
 ),
 queue_activity AS (
     SELECT
