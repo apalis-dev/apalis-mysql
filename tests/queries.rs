@@ -255,3 +255,44 @@ async fn reenqueue_orphaned_leaves_live_workers_alone() {
         .unwrap();
     assert_eq!(count, 0);
 }
+
+#[tokio::test]
+async fn reenqueue_orphaned_returns_a_dead_workers_tasks() {
+    let pool = pool().await;
+    let queue = unique("orphaned");
+    let config = Config::default().queue(queue.clone());
+    let mut backend = MySqlStorage::<u32>::new(&pool).with_config(config.clone());
+    backend.push(1u32).await.unwrap();
+
+    let worker = WorkerContext::new(&unique("worker"));
+    let mut conn = pool.acquire().await.unwrap();
+    queries::register_worker(&mut *conn, &config, &worker, "MySqlStorage")
+        .await
+        .unwrap();
+    sqlx::query("UPDATE jobs SET status = 'Running', lock_by = ? WHERE job_type = ?")
+        .bind(worker.name())
+        .bind(&queue)
+        .execute(&pool)
+        .await
+        .unwrap();
+    // The worker's last heartbeat was ten minutes ago.
+    sqlx::query("UPDATE workers SET last_seen = NOW() - INTERVAL 600 SECOND WHERE id = ?")
+        .bind(worker.name())
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let count = queries::reenqueue_orphaned(&mut *conn, &queue, 300)
+        .await
+        .unwrap();
+    assert_eq!(count, 1);
+
+    let (status, lock_by): (String, Option<String>) =
+        sqlx::query_as("SELECT status, lock_by FROM jobs WHERE job_type = ?")
+            .bind(&queue)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(status, "Pending");
+    assert_eq!(lock_by, None);
+}

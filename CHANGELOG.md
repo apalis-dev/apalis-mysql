@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- _fix_: `reenqueue_orphaned` now re-enqueues a dead worker's tasks: it compared `UNIX_TIMESTAMP()` with the `TIMESTAMP` column `workers.last_seen` read as a number, so it never matched ([#121](https://github.com/apalis-dev/apalis-mysql/pull/121))
+
 ## [1.1.0](https://github.com/apalis-dev/apalis-mysql/releases/tag/v1.1.0)
 
 - fix: remove time and chrono dependencies for sqlx ([#114](https://github.com/apalis-dev/apalis-mysql/pull/114))
