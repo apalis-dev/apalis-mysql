@@ -25,7 +25,7 @@ FROM (
         CAST(COUNT(*) AS DOUBLE)
     FROM jobs
     WHERE job_type = ? AND status = 'Running'
-        AND run_at < UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))
+        AND run_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)
     
     UNION ALL
     SELECT 2, 'Percentage', 'KILL_RATE',
@@ -37,25 +37,25 @@ FROM (
     SELECT 3, 'Number', 'JOBS_PAST_HOUR',
         CAST(COUNT(*) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))
+    WHERE job_type = ? AND run_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
     
     UNION ALL
     SELECT 3, 'Number', 'JOBS_TODAY',
         CAST(COUNT(*) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND DATE(FROM_UNIXTIME(run_at)) = CURDATE()
+    WHERE job_type = ? AND DATE(run_at) = CURDATE()
     
     UNION ALL
     SELECT 3, 'Number', 'KILLED_JOBS_TODAY',
         CAST(SUM(CASE WHEN status = 'Killed' THEN 1 ELSE 0 END) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND DATE(FROM_UNIXTIME(run_at)) = CURDATE()
+    WHERE job_type = ? AND DATE(run_at) = CURDATE()
     
     UNION ALL
     SELECT 3, 'Decimal', 'AVG_JOBS_PER_MINUTE_PAST_HOUR',
         CAST(ROUND(COUNT(*) / 60.0, 2) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 HOUR))
+    WHERE job_type = ? AND run_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
     
     -- Totals
     UNION ALL
@@ -86,18 +86,18 @@ FROM (
     -- Duration metrics
     UNION ALL
     SELECT 5, 'Decimal', 'AVG_JOB_DURATION_MINS',
-        CAST(ROUND(AVG((done_at - run_at) / 60.0), 2) AS DOUBLE)
+        CAST(ROUND(AVG(TIMESTAMPDIFF(SECOND, run_at, done_at) / 60.0), 2) AS DOUBLE)
     FROM jobs
     WHERE job_type = ? AND status IN ('Done', 'Failed', 'Killed') AND done_at IS NOT NULL
     
     UNION ALL
     SELECT 5, 'Decimal', 'LONGEST_RUNNING_JOB_MINS',
-        CAST(ROUND(MAX(CASE WHEN status = 'Running' THEN (UNIX_TIMESTAMP() - run_at) / 60.0 ELSE 0 END), 2) AS DOUBLE)
+        CAST(ROUND(MAX(CASE WHEN status = 'Running' THEN TIMESTAMPDIFF(SECOND, run_at, NOW()) / 60.0 ELSE 0 END), 2) AS DOUBLE)
     FROM jobs WHERE job_type = ?
     
     UNION ALL
     SELECT 5, 'Number', 'QUEUE_BACKLOG',
-        CAST(SUM(CASE WHEN status = 'Pending' AND run_at <= UNIX_TIMESTAMP() THEN 1 ELSE 0 END) AS DOUBLE)
+        CAST(SUM(CASE WHEN status = 'Pending' AND run_at <= NOW() THEN 1 ELSE 0 END) AS DOUBLE)
     FROM jobs WHERE job_type = ?
     
     -- Extended time ranges
@@ -105,50 +105,50 @@ FROM (
     SELECT 6, 'Number', 'JOBS_PAST_24_HOURS',
         CAST(COUNT(*) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY))
+    WHERE job_type = ? AND run_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
     
     UNION ALL
     SELECT 6, 'Number', 'JOBS_PAST_7_DAYS',
         CAST(COUNT(*) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))
+    WHERE job_type = ? AND run_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     
     UNION ALL
     SELECT 6, 'Number', 'KILLED_JOBS_PAST_7_DAYS',
         CAST(SUM(CASE WHEN status = 'Killed' THEN 1 ELSE 0 END) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))
+    WHERE job_type = ? AND run_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     
     UNION ALL
     SELECT 6, 'Percentage', 'SUCCESS_RATE_PAST_24H',
         CAST(ROUND(100.0 * SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 2) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY))
+    WHERE job_type = ? AND run_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
     
     -- Averages over time
     UNION ALL
     SELECT 7, 'Decimal', 'AVG_JOBS_PER_HOUR_PAST_24H',
         CAST(ROUND(COUNT(*) / 24.0, 2) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY))
+    WHERE job_type = ? AND run_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
     
     UNION ALL
     SELECT 7, 'Decimal', 'AVG_JOBS_PER_DAY_PAST_7D',
         CAST(ROUND(COUNT(*) / 7.0, 2) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))
+    WHERE job_type = ? AND run_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     
     -- Timestamps
     UNION ALL
     SELECT 8, 'Timestamp', 'MOST_RECENT_JOB',
-        CAST(MAX(run_at) AS DOUBLE)
+        CAST(UNIX_TIMESTAMP(MAX(run_at)) AS DOUBLE)
     FROM jobs WHERE job_type = ?
     
     UNION ALL
     SELECT 8, 'Timestamp', 'OLDEST_PENDING_JOB',
-        CAST(MIN(run_at) AS DOUBLE)
+        CAST(UNIX_TIMESTAMP(MIN(run_at)) AS DOUBLE)
     FROM jobs
-    WHERE job_type = ? AND status = 'Pending' AND run_at <= UNIX_TIMESTAMP()
+    WHERE job_type = ? AND status = 'Pending' AND run_at <= NOW()
     
     UNION ALL
     SELECT 8, 'Number', 'PEAK_HOUR_JOBS',
@@ -156,8 +156,8 @@ FROM (
     FROM (
         SELECT COUNT(*) as hourly_count
         FROM jobs
-        WHERE job_type = ? AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 1 DAY))
-        GROUP BY HOUR(FROM_UNIXTIME(run_at))
+        WHERE job_type = ? AND run_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)
+        GROUP BY HOUR(run_at)
     ) AS hourly_jobs
 ) results
 ORDER BY priority, statistic

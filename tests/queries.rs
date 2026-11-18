@@ -8,7 +8,10 @@ use std::{env, time::Duration};
 
 use apalis::prelude::*;
 use apalis_core::{
-    backend::{Filter, ListTasks, ListWorkers, Metrics, TaskSink, Vacuum, WaitForCompletion},
+    backend::{
+        Filter, ListQueues, ListTasks, ListWorkers, Metrics, Statistic, TaskSink, Vacuum,
+        WaitForCompletion,
+    },
     task::status::Status,
 };
 use apalis_mysql::{Config, Error, MySqlPool, MySqlStorage, queries};
@@ -140,6 +143,87 @@ async fn metrics_report_global_and_per_queue_statistics() {
         .find(|s| s.title == "PENDING_JOBS")
         .expect("pending jobs are reported for the queue");
     assert_eq!(pending.value, "1");
+}
+
+/// Plants a task `run_at_ago` seconds in the past, finished `took` seconds
+/// after it started when given.
+async fn plant(pool: &MySqlPool, queue: &str, status: &str, run_at_ago: i64, took: Option<i64>) {
+    sqlx::query(
+        "INSERT INTO jobs (id, job_type, status, run_at, done_at, job) VALUES \
+         (?, ?, ?, NOW() - INTERVAL ? SECOND, NOW() - INTERVAL ? SECOND + INTERVAL ? SECOND, '')",
+    )
+    .bind(Ulid::generate().to_string())
+    .bind(queue)
+    .bind(status)
+    .bind(run_at_ago)
+    .bind(run_at_ago)
+    .bind(took)
+    .execute(pool)
+    .await
+    .unwrap();
+}
+
+fn stat(stats: &[Statistic], title: &str) -> f64 {
+    stats
+        .iter()
+        .find(|s| s.title == title)
+        .unwrap_or_else(|| panic!("{title} is reported"))
+        .value
+        .parse()
+        .unwrap_or_else(|_| panic!("{title} is a number"))
+}
+
+/// `run_at` and `done_at` are TIMESTAMP columns: the time-window stats must
+/// compare them as times, not as unix seconds.
+#[tokio::test]
+async fn metrics_count_tasks_by_when_they_ran() {
+    const MINUTE: i64 = 60;
+    const HOUR: i64 = 60 * MINUTE;
+    const DAY: i64 = 24 * HOUR;
+
+    let pool = pool().await;
+    let queue = unique("windows");
+    let backend =
+        MySqlStorage::<u32>::new(&pool).with_config(Config::default().queue(queue.clone()));
+
+    plant(&pool, &queue, "Done", 30 * MINUTE, Some(90)).await;
+    plant(&pool, &queue, "Done", 2 * HOUR, Some(30)).await;
+    plant(&pool, &queue, "Running", 10 * MINUTE, None).await;
+    plant(&pool, &queue, "Running", 3 * HOUR, None).await;
+    plant(&pool, &queue, "Pending", 5 * MINUTE, None).await;
+    plant(&pool, &queue, "Killed", 3 * DAY, None).await;
+    plant(&pool, &queue, "Done", 30 * DAY, Some(60)).await;
+
+    let by_queue = backend.fetch_by_queue().await.unwrap();
+    assert_eq!(stat(&by_queue, "JOBS_PAST_HOUR"), 3.0);
+    assert_eq!(stat(&by_queue, "JOBS_PAST_24_HOURS"), 5.0);
+    assert_eq!(stat(&by_queue, "JOBS_PAST_7_DAYS"), 6.0);
+    assert_eq!(stat(&by_queue, "STALE_RUNNING_JOBS"), 1.0);
+    assert_eq!(stat(&by_queue, "QUEUE_BACKLOG"), 1.0);
+    // (1.5 + 0.5 + 1.0) / 3 minutes.
+    assert_eq!(stat(&by_queue, "AVG_JOB_DURATION_MINS"), 1.0);
+    let longest = stat(&by_queue, "LONGEST_RUNNING_JOB_MINS");
+    assert!((180.0..181.0).contains(&longest), "{longest}");
+
+    let queues = backend.list_queues().await.unwrap();
+    let info = queues
+        .iter()
+        .find(|info| info.name == queue)
+        .expect("queue is listed");
+    let five_minutes_ago = (std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as f64)
+        - 5.0 * MINUTE as f64;
+    let most_recent = stat(&info.stats, "MOST_RECENT_JOB");
+    assert!(
+        (most_recent - five_minutes_ago).abs() < 60.0,
+        "MOST_RECENT_JOB is unix seconds: {most_recent}"
+    );
+    assert_eq!(stat(&info.stats, "JOBS_PAST_7_DAYS"), 6.0);
+    // The killed task ran on an earlier day than the rest.
+    assert!(info.activity.len() >= 2, "{:?}", info.activity);
+    assert_eq!(info.activity.iter().sum::<usize>(), 6);
 }
 
 #[tokio::test]
