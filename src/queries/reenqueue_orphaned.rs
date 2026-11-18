@@ -14,7 +14,6 @@ pub async fn reenqueue_orphaned<E>(
 where
     for<'e> &'e mut E: Executor<'e, Database = sqlx::MySql>,
 {
-    let dead_for = -(dead_for as i64);
     match sqlx::query_file!("queries/backend/reenqueue_orphaned.sql", dead_for, queue)
         .execute(executor)
         .await
