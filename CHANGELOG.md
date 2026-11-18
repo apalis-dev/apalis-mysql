@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- _fix_: MariaDB compatibility for the metrics queries (`overview.sql`, `overview_by_queue.sql`), which failed with a syntax error (1064), by casting to `DOUBLE` instead of `REAL` ([#118](https://github.com/apalis-dev/apalis-mysql/pull/118))
+
 ## [1.1.0](https://github.com/apalis-dev/apalis-mysql/releases/tag/v1.1.0)
 
 - fix: remove time and chrono dependencies for sqlx ([#114](https://github.com/apalis-dev/apalis-mysql/pull/114))
