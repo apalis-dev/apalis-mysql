@@ -183,6 +183,25 @@ WITH queue_stats AS (
     ) t
     GROUP BY job_type
 ),
+daily_counts AS (
+    SELECT
+        job_type,
+        DATE(FROM_UNIXTIME(run_at)) AS day,
+        COUNT(*) AS daily_count
+    FROM jobs
+    WHERE run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))
+    GROUP BY job_type, DATE(FROM_UNIXTIME(run_at))
+),
+queue_activity AS (
+    SELECT
+        job_type,
+        JSON_EXTRACT(
+            CONCAT('[', GROUP_CONCAT(daily_count ORDER BY day SEPARATOR ','), ']'),
+            '$'
+        ) AS activity
+    FROM daily_counts
+    GROUP BY job_type
+),
 all_job_types AS (
     SELECT worker_type AS job_type FROM workers
     UNION
@@ -200,20 +219,8 @@ SELECT
         ),
         JSON_ARRAY()
     ) as workers,
-    COALESCE(
-        (
-            SELECT JSON_ARRAYAGG(daily_count)
-            FROM (
-                SELECT COUNT(*) as daily_count
-                FROM jobs
-                WHERE job_type = jt.job_type
-                  AND run_at >= UNIX_TIMESTAMP(DATE_SUB(NOW(), INTERVAL 7 DAY))
-                GROUP BY DATE(FROM_UNIXTIME(run_at))
-                ORDER BY DATE(FROM_UNIXTIME(run_at))
-            ) x
-        ),
-        JSON_ARRAY()
-    ) as activity
+    COALESCE(qa.activity, JSON_ARRAY()) as activity
 FROM all_job_types jt
 LEFT JOIN queue_stats qs ON jt.job_type = qs.job_type
+LEFT JOIN queue_activity qa ON jt.job_type = qa.job_type
 ORDER BY name;

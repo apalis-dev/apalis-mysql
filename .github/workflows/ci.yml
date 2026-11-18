@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     services:
       mysql:
-        image: mysql:8
+        image: ${{ matrix.db }}
         env:
           MYSQL_DATABASE: test
           MYSQL_USER: test
@@ -30,9 +30,14 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         rust: [stable, beta]
+        db: ['mysql:8']
         include:
           - os: ubuntu-latest
             rust: nightly-2026-04-16
+            db: mysql:8
+          - os: ubuntu-latest
+            rust: stable
+            db: mariadb:11.8
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6
