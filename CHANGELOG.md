@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - _fix_: MariaDB compatibility for `list_queues`, which failed with "Unknown column 'jt.job_type'" (1054), by computing the 7-day activity in a joined CTE instead of a derived table that referenced the outer query ([#119](https://github.com/apalis-dev/apalis-mysql/pull/119))
+- _fix_: MariaDB compatibility for the metrics queries (`overview.sql`, `overview_by_queue.sql`), which failed with a syntax error (1064), by casting to `DOUBLE` instead of `REAL` ([#118](https://github.com/apalis-dev/apalis-mysql/pull/118))
 
 ## [1.1.0](https://github.com/apalis-dev/apalis-mysql/releases/tag/v1.1.0)
 
