@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- _fix_: MariaDB compatibility for `list_queues`, which failed with "Unknown column 'jt.job_type'" (1054), by computing the 7-day activity in a joined CTE instead of a derived table that referenced the outer query ([#119](https://github.com/apalis-dev/apalis-mysql/pull/119))
+
 ## [1.1.0](https://github.com/apalis-dev/apalis-mysql/releases/tag/v1.1.0)
 
 - fix: remove time and chrono dependencies for sqlx ([#114](https://github.com/apalis-dev/apalis-mysql/pull/114))
