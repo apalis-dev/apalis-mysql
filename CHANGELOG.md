@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- *ci(deps)*: bump cargo-bins/cargo-binstall from 1.26.2 to 1.27.0 ([#125](https://github.com/apalis-dev/apalis-mysql/pull/125))
 ## [1.1.1](https://github.com/apalis-dev/apalis-mysql/releases/tag/v1.1.1)
 
 - _fix_: MariaDB compatibility for the task-id `JSON_TABLE` queries (claim, lock, re-enqueue), which failed with "Illegal mix of collations" (1267), by declaring the `JSON_TABLE` column as `utf8mb4_0900_ai_ci` like the `jobs` table ([#117](https://github.com/apalis-dev/apalis-mysql/pull/117))
