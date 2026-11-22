@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.2.0](https://github.com/apalis-dev/apalis-mysql/releases/tag/v1.2.0)
+
 - *ci(deps)*: bump cargo-bins/cargo-binstall from 1.26.2 to 1.27.0 ([#125](https://github.com/apalis-dev/apalis-mysql/pull/125))
 ## [1.1.1](https://github.com/apalis-dev/apalis-mysql/releases/tag/v1.1.1)
 
