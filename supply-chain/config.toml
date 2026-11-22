@@ -125,7 +125,7 @@ version = "1.12.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.cc]]
-version = "1.11.2"
+version = "1.11.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.cfg-if]]
@@ -205,11 +205,11 @@ version = "1.19.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.env_filter]]
-version = "2.0.0"
+version = "2.1.0"
 criteria = "safe-to-run"
 
 [[exemptions.env_logger]]
-version = "0.11.11"
+version = "0.11.12"
 criteria = "safe-to-run"
 
 [[exemptions.equivalent]]
@@ -269,7 +269,7 @@ version = "0.1.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.form_urlencoded]]
-version = "1.2.2"
+version = "1.2.3"
 criteria = "safe-to-deploy"
 
 [[exemptions.futures]]
@@ -349,7 +349,7 @@ version = "0.16.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.hashbrown]]
-version = "0.17.1"
+version = "0.17.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.hashlink]]
@@ -429,15 +429,15 @@ version = "1.0.19"
 criteria = "safe-to-deploy"
 
 [[exemptions.jiff]]
-version = "0.2.46"
+version = "1.0.2"
 criteria = "safe-to-run"
 
 [[exemptions.jiff-core]]
-version = "0.1.8"
+version = "1.0.1"
 criteria = "safe-to-run"
 
 [[exemptions.jiff-static]]
-version = "0.2.46"
+version = "1.0.2"
 criteria = "safe-to-run"
 
 [[exemptions.js-sys]]
@@ -549,15 +549,15 @@ version = "0.8.3"
 criteria = "safe-to-run"
 
 [[exemptions.pin-project]]
-version = "1.1.13"
+version = "1.2.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.pin-project-internal]]
-version = "1.1.13"
+version = "1.2.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.pin-project-lite]]
-version = "0.2.17"
+version = "0.2.18"
 criteria = "safe-to-deploy"
 
 [[exemptions.pin-utils]]
@@ -877,7 +877,7 @@ version = "0.9.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.url]]
-version = "2.5.8"
+version = "2.5.9"
 criteria = "safe-to-deploy"
 
 [[exemptions.utf8_iter]]
